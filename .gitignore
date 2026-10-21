@@ -1,0 +1,13 @@
+# Variables de entorno y secretos
+.env
+*.env.local
+
+# Archivos temporales y del sistema
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Dumps pesados locales si no corresponden al seed oficial
+*.tmp

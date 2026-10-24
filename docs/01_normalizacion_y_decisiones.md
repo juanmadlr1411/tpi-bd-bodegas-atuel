@@ -80,3 +80,7 @@ Se verifican los casos críticos del dominio:
 
 3. **Separación de `vino` y `bodega`:**
    * En `vino`, `cod_vino -> cuit_bodega`. Los atributos descriptivos de la bodega (`cuit_bodega -> {razon_social, domicilio}`) se encuentran aislados en la tabla `bodega`, evitando redundancia y dependencias transitivas en el catálogo de vinos.
+
+4. **Atributo `porcentaje_descuento` en `cliente` (RN-06 y operación U6):**
+   * En `cliente`, `id_cliente -> {tipo_cliente, porcentaje_descuento}`.
+   * Si bien en el alta inicial el porcentaje se asigna según el `tipo_cliente` (**RN-06**: 10% socio, 20% distribuidor, 30% exportador), las reglas de negocio admiten que un exportador modifique su porcentaje individual al 35% según su volumen de permisos (consigna **U6**). Por lo tanto, `porcentaje_descuento` es un atributo propio de la instancia de `id_cliente` y no depende transitivamente de `tipo_cliente`, cumpliendo **3FN**.

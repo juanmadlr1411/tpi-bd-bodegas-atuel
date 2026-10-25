@@ -127,7 +127,108 @@ CREATE TABLE analisis_calidad (
 --         permiso_exportacion
 -- =============================================================================
 
--- [MANUEL: Insertar aquí los CREATE TABLE de tus 10 tablas]
+CREATE TABLE bodega (
+    cuit                cuit_dom        PRIMARY KEY,
+    razon_social        VARCHAR(100)    NOT NULL UNIQUE,
+    domicilio           VARCHAR(150)    NOT NULL
+);
+
+-- RN-01: El precio de un vino es único y siempre mayor que cero.
+-- RN-14: No se puede borrar una bodega con vinos asociados (ON DELETE RESTRICT).
+CREATE TABLE vino (
+    cod_vino            INTEGER         GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nombre              VARCHAR(80)     NOT NULL,
+    tipo                tipo_vino       NOT NULL,
+    anada               SMALLINT        NOT NULL CHECK (anada BETWEEN 1990 AND 2100),
+    volumen_ml          INTEGER         NOT NULL CHECK (volumen_ml IN (187, 375, 750, 1500, 3000)),
+    graduacion          NUMERIC(4,2)    NOT NULL CHECK (graduacion BETWEEN 5 AND 20),
+    precio              NUMERIC(12,2)   NOT NULL CHECK (precio > 0),
+    cuit_bodega         cuit_dom        NOT NULL
+                        REFERENCES bodega (cuit)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    UNIQUE (nombre, anada, volumen_ml)
+);
+
+-- Relación N:M entre VINO y CEPA con atributo propio (porcentaje)
+CREATE TABLE composicion_vino (
+    cod_vino            INTEGER         NOT NULL
+                        REFERENCES vino (cod_vino)
+                        ON DELETE CASCADE ON UPDATE CASCADE,
+    id_cepa             INTEGER         NOT NULL
+                        REFERENCES cepa (id_cepa)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    porcentaje          NUMERIC(5,2)    NOT NULL CHECK (porcentaje > 0 AND porcentaje <= 100),
+    PRIMARY KEY (cod_vino, id_cepa)
+);
+
+CREATE TABLE maridaje (
+    id_maridaje             INTEGER     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nombre                  VARCHAR(80) NOT NULL UNIQUE,
+    temperatura_servicio    SMALLINT    NOT NULL CHECK (temperatura_servicio BETWEEN 0 AND 30)
+);
+
+-- Relación N:M entre VINO y MARIDAJE
+CREATE TABLE vino_maridaje (
+    cod_vino            INTEGER         NOT NULL
+                        REFERENCES vino (cod_vino)
+                        ON DELETE CASCADE ON UPDATE CASCADE,
+    id_maridaje         INTEGER         NOT NULL
+                        REFERENCES maridaje (id_maridaje)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    PRIMARY KEY (cod_vino, id_maridaje)
+);
+
+-- Jerarquía ERE: Supertipo CLIENTE
+-- RN-06: El descuento inicial depende del tipo de cliente, pero se protege el rango (0 a 100)
+CREATE TABLE cliente (
+    id_cliente              INTEGER             GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nombre_razon_social     VARCHAR(120)        NOT NULL,
+    tipo_documento          VARCHAR(10)         NOT NULL,
+    nro_documento           VARCHAR(20)         NOT NULL,
+    direccion               VARCHAR(150)        NOT NULL,
+    cod_postal              VARCHAR(10)         NOT NULL
+                            REFERENCES localidad (cod_postal)
+                            ON DELETE RESTRICT ON UPDATE CASCADE,
+    fecha_alta              DATE                NOT NULL DEFAULT CURRENT_DATE,
+    tipo_cliente            tipo_cliente_enum   NOT NULL,
+    porcentaje_descuento    NUMERIC(5,2)        NOT NULL CHECK (porcentaje_descuento BETWEEN 0 AND 100),
+    UNIQUE (tipo_documento, nro_documento)
+);
+
+-- Subtipo 1: SOCIO
+CREATE TABLE cliente_socio (
+    id_cliente          INTEGER         PRIMARY KEY
+                        REFERENCES cliente (id_cliente)
+                        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- Subtipo 2: DISTRIBUIDOR
+CREATE TABLE cliente_distribuidor (
+    id_cliente          INTEGER         PRIMARY KEY
+                        REFERENCES cliente (id_cliente)
+                        ON DELETE CASCADE ON UPDATE CASCADE,
+    zona_cobertura      VARCHAR(100)    NOT NULL,
+    nro_habilitacion    VARCHAR(40)     NOT NULL UNIQUE
+);
+
+-- Subtipo 3: EXPORTADOR
+CREATE TABLE cliente_exportador (
+    id_cliente          INTEGER         PRIMARY KEY
+                        REFERENCES cliente (id_cliente)
+                        ON DELETE CASCADE ON UPDATE CASCADE,
+    pais_destino        VARCHAR(80)     NOT NULL
+);
+
+-- RN-07: Un exportador puede tener varios permisos; el vencimiento es posterior a la emisión.
+CREATE TABLE permiso_exportacion (
+    cod_permiso         VARCHAR(40)     PRIMARY KEY,
+    id_cliente          INTEGER         NOT NULL
+                        REFERENCES cliente_exportador (id_cliente)
+                        ON DELETE CASCADE ON UPDATE CASCADE,
+    fecha_emision       DATE            NOT NULL,
+    fecha_vencimiento   DATE            NOT NULL,
+    CHECK (fecha_vencimiento > fecha_emision)
+);
 
 
 -- =============================================================================

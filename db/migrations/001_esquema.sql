@@ -133,6 +133,13 @@ CREATE TABLE bodega (
     domicilio           VARCHAR(150)    NOT NULL
 );
 
+-- Vínculo referencial entre LOTE_UVA y BODEGA (Sección 3) - RN-14
+ALTER TABLE lote_uva
+    ADD CONSTRAINT fk_lote_uva_bodega
+    FOREIGN KEY (cuit_bodega)
+    REFERENCES bodega (cuit)
+    ON DELETE RESTRICT ON UPDATE CASCADE;
+
 -- RN-01: El precio de un vino es único y siempre mayor que cero.
 -- RN-14: No se puede borrar una bodega con vinos asociados (ON DELETE RESTRICT).
 CREATE TABLE vino (

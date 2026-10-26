@@ -122,4 +122,37 @@
 | **renglon_comprobante** | `precio_unitario` | `NUMERIC(12,2)` | NO | `NOT NULL, CHECK (> 0)` | Precio unitario del vino vigente al momento de la venta. |
 | **renglon_comprobante** | `descuento` | `NUMERIC(5,2)` | NO | `NOT NULL, CHECK (0..100)` | Porcentaje de descuento aplicado al renglón según el cliente. |
 | **renglon_comprobante** | `subtotal` | `NUMERIC(14,2)` | NO | `NOT NULL, CHECK (> 0)` | Subtotal neto del renglón con el descuento aplicado. |
-<!-- Bruno: Completar filas de las 9 tablas restantes -->
+| **transportista** | `cod_transporte` | `INTEGER` | NO | `PK, IDENTITY` | Código único de la empresa de transporte. |
+| **transportista** | `razon_social` | `VARCHAR(100)` | NO | `NOT NULL, UNIQUE` | Razón social del transportista. |
+| **transportista** | `cuit` | `cuit_dom` | NO | `NOT NULL, UNIQUE, DOMAIN` | CUIT de 11 dígitos del transportista. |
+| **transportista** | `email` | `VARCHAR(100)` | NO | `NOT NULL` | Correo electrónico de contacto. |
+| **transportista** | `telefono` | `VARCHAR(30)` | NO | `NOT NULL` | Teléfono de contacto. |
+| **transportista** | `domicilio` | `VARCHAR(150)` | NO | `NOT NULL` | Domicilio fiscal | operativo. |
+| **transportista_localidad** | `cod_transporte` | `INTEGER` | NO | `PK, FK -> transportista(cod_transporte), NOT NULL` | Transportista que brinda cobertura. |
+| **transportista_localidad** | `cod_postal` | `VARCHAR(10)` | NO | `PK, FK -> localidad(cod_postal), NOT NULL` | Localidad alcanzada por el servicio. |
+| **ingreso** | `cod_ingreso` | `INTEGER` | NO | `PK, IDENTITY` | Código único de ingreso al depósito central. |
+| **ingreso** | `fecha` | `DATE` | NO | `NOT NULL, DEFAULT CURRENT_DATE` | Fecha del ingreso. |
+| **ingreso** | `estado` | `estado_documento` | NO | `NOT NULL, DEFAULT 'en_confeccion'` | 'en_confeccion', 'terminado' o 'procesado' (RN-10). |
+| **ingreso** | `cod_transporte` | `INTEGER` | NO | `FK -> transportista(cod_transporte), NOT NULL` | Transportista que efectuó el traslado. |
+| **ingreso** | `cuit_bodega` | `cuit_dom` | NO | `FK -> bodega(cuit), NOT NULL` | Bodega de origen de las botellas. |
+| **renglon_ingreso** | `cod_ingreso` | `INTEGER` | NO | `PK, FK -> ingreso(cod_ingreso), NOT NULL` | Ingreso al que pertenece el renglón. |
+| **renglon_ingreso** | `cod_vino` | `INTEGER` | NO | `PK, FK -> vino(cod_vino), NOT NULL` | Vino ingresado al depósito. |
+| **renglon_ingreso** | `cantidad` | `INTEGER` | NO | `NOT NULL, CHECK (> 0)` | Cantidad de botellas ingresadas (RN-15). |
+| **transferencia** | `nro_transferencia` | `INTEGER` | NO | `PK, IDENTITY` | Número único de solicitud de transferencia. |
+| **transferencia** | `id_sala` | `INTEGER` | NO | `FK -> sala_venta(id_sala), NOT NULL` | Sala de venta solicitante. |
+| **transferencia** | `fecha_confeccion` | `DATE` | NO | `NOT NULL, DEFAULT CURRENT_DATE` | Fecha actual inmodificable (RN-11). |
+| **transferencia** | `estado` | `estado_documento` | NO | `NOT NULL, DEFAULT 'en_confeccion'` | 'en_confeccion', 'terminado' o 'procesado' (RN-11). |
+| **renglon_transferencia** | `nro_transferencia` | `INTEGER` | NO | `PK, FK -> transferencia(nro_transferencia), NOT NULL` | Transferencia a la que pertenece el renglón. |
+| **renglon_transferencia** | `cod_vino` | `INTEGER` | NO | `PK, FK -> vino(cod_vino), NOT NULL` | Vino solicitado en la transferencia. |
+| **renglon_transferencia** | `cantidad` | `INTEGER` | NO | `NOT NULL, CHECK (> 0)` | Cantidad de botellas solicitadas (RN-15). |
+| **stock_sala** | `id_sala` | `INTEGER` | NO | `PK, FK -> sala_venta(id_sala), NOT NULL` | Sala de venta. |
+| **stock_sala** | `cod_vino` | `INTEGER` | NO | `PK, FK -> vino(cod_vino), NOT NULL` | Vino en stock en esa sala. |
+| **stock_sala** | `cantidad` | `INTEGER` | NO | `NOT NULL, DEFAULT 0, CHECK (>= 0)` | Botellas disponibles en la sala (RN-09). |
+| **stock_deposito** | `cod_vino` | `INTEGER` | NO | `PK, FK -> vino(cod_vino), NOT NULL` | Vino en el depósito central único. |
+| **stock_deposito** | `cantidad` | `INTEGER` | NO | `NOT NULL, DEFAULT 0, CHECK (>= 0)` | Botellas disponibles en el depósito central. |
+| **auditoria_precio** | `id_auditoria` | `INTEGER` | NO | `PK, IDENTITY` | Identificador del registro de auditoría. |
+| **auditoria_precio** | `cod_vino` | `INTEGER` | NO | `FK -> vino(cod_vino), NOT NULL` | Vino cuyo precio fue modificado. |
+| **auditoria_precio** | `precio_anterior` | `NUMERIC(12,2)` | NO | `NOT NULL, CHECK (> 0)` | Precio antes del UPDATE (RN-13). |
+| **auditoria_precio** | `precio_nuevo` | `NUMERIC(12,2)` | NO | `NOT NULL, CHECK (> 0)` | Precio después del UPDATE (RN-13). |
+| **auditoria_precio** | `fecha_hora` | `TIMESTAMP` | NO | `NOT NULL, DEFAULT CURRENT_TIMESTAMP` | Fecha y hora exacta del cambio. |
+| **auditoria_precio** | `usuario` | `VARCHAR(80)` | NO | `NOT NULL, DEFAULT CURRENT_USER` | Usuario de BD que ejecutó el cambio. |

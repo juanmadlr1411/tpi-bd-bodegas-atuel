@@ -63,4 +63,25 @@ Convención: **<u>PK subrayada y en negrita</u>**, *FK en cursiva*, `[UNIQUE]` e
 2. **RENGLON_COMPROBANTE** (**<u>*nro_comprobante*, *cod_vino*</u>**, cantidad, precio_unitario, descuento, subtotal)
    - Clave Foránea 1: *nro_comprobante* referencia a **COMPROBANTE**(nro_comprobante).
    - Clave Foránea 2: *cod_vino* referencia a **VINO**(cod_vino).
-<!-- Bruno: Completar aquí las 9 relaciones restantes (transportista, transportista_localidad, ingreso, renglon_ingreso, transferencia, renglon_transferencia, stock_sala, stock_deposito y auditoria_precio) -->
+3. **TRANSPORTISTA** (**<u>cod_transporte</u>**, razon_social [UNIQUE], cuit [UNIQUE], email, telefono, domicilio)
+4. **TRANSPORTISTA_LOCALIDAD** (**<u>*cod_transporte*, *cod_postal*</u>**)
+   - Clave Foránea 1: *cod_transporte* referencia a **TRANSPORTISTA**(cod_transporte).
+   - Clave Foránea 2: *cod_postal* referencia a **LOCALIDAD**(cod_postal).
+5. **INGRESO** (**<u>cod_ingreso</u>**, fecha, estado, *cod_transporte*, *cuit_bodega*)
+   - Clave Foránea 1: *cod_transporte* referencia a **TRANSPORTISTA**(cod_transporte).
+   - Clave Foránea 2: *cuit_bodega* referencia a **BODEGA**(cuit).
+6. **RENGLON_INGRESO** (**<u>*cod_ingreso*, *cod_vino*</u>**, cantidad)
+   - Clave Foránea 1: *cod_ingreso* referencia a **INGRESO**(cod_ingreso).
+   - Clave Foránea 2: *cod_vino* referencia a **VINO**(cod_vino).
+7. **TRANSFERENCIA** (**<u>nro_transferencia</u>**, *id_sala*, fecha_confeccion, estado)
+   - Clave Foránea 1: *id_sala* referencia a **SALA_VENTA**(id_sala).
+8. **RENGLON_TRANSFERENCIA** (**<u>*nro_transferencia*, *cod_vino*</u>**, cantidad)
+   - Clave Foránea 1: *nro_transferencia* referencia a **TRANSFERENCIA**(nro_transferencia).
+   - Clave Foránea 2: *cod_vino* referencia a **VINO**(cod_vino).
+9. **STOCK_SALA** (**<u>*id_sala*, *cod_vino*</u>**, cantidad)
+   - Clave Foránea 1: *id_sala* referencia a **SALA_VENTA**(id_sala).
+   - Clave Foránea 2: *cod_vino* referencia a **VINO**(cod_vino).
+10. **STOCK_DEPOSITO** (**<u>*cod_vino*</u>**, cantidad)
+    - Clave Foránea 1: *cod_vino* referencia a **VINO**(cod_vino).
+11. **AUDITORIA_PRECIO** (**<u>id_auditoria</u>**, *cod_vino*, precio_anterior, precio_nuevo, fecha_hora, usuario)
+    - Clave Foránea 1: *cod_vino* referencia a **VINO**(cod_vino).

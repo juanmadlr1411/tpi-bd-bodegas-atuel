@@ -245,6 +245,131 @@ CREATE TABLE permiso_exportacion (
 --         renglon_transferencia, stock_sala, stock_deposito, auditoria_precio
 -- =============================================================================
 
--- [BRUNO: Insertar aquí los CREATE TABLE de tus 11 tablas]
+CREATE TABLE comprobante (
+    nro_comprobante     INTEGER         GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    fecha               DATE            NOT NULL DEFAULT CURRENT_DATE,
+    id_cliente          INTEGER         NOT NULL
+                        REFERENCES cliente (id_cliente)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    id_sala             INTEGER         NOT NULL
+                        REFERENCES sala_venta (id_sala)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    subtotal            NUMERIC(14,2)   NOT NULL DEFAULT 0 CHECK (subtotal >= 0),
+    descuento           NUMERIC(14,2)   NOT NULL DEFAULT 0 CHECK (descuento >= 0),
+    total               NUMERIC(14,2)   NOT NULL DEFAULT 0 CHECK (total >= 0)
+);
+
+CREATE TABLE renglon_comprobante (
+    nro_comprobante     INTEGER         NOT NULL
+                        REFERENCES comprobante (nro_comprobante)
+                        ON DELETE CASCADE ON UPDATE CASCADE,
+    cod_vino            INTEGER         NOT NULL
+                        REFERENCES vino (cod_vino)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    cantidad            INTEGER         NOT NULL CHECK (cantidad > 0),
+    precio_unitario     NUMERIC(12,2)   NOT NULL CHECK (precio_unitario > 0),
+    descuento           NUMERIC(5,2)    NOT NULL CHECK (descuento BETWEEN 0 AND 100),
+    subtotal            NUMERIC(14,2)   NOT NULL CHECK (subtotal > 0),
+    PRIMARY KEY (nro_comprobante, cod_vino)
+);
+
+-- -----------------------------------------------------------------------------
+-- 6. SUBDOMINIO: TRANSPORTE, STOCK, INGRESOS Y TRANSFERENCIAS (Sección 3.5)
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE transportista (
+    cod_transporte      INTEGER         GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    razon_social        VARCHAR(100)    NOT NULL UNIQUE,
+    cuit                cuit_dom        NOT NULL UNIQUE,
+    email               VARCHAR(100)    NOT NULL,
+    telefono            VARCHAR(30)     NOT NULL,
+    domicilio           VARCHAR(150)    NOT NULL
+);
+
+CREATE TABLE transportista_localidad (
+    cod_transporte      INTEGER         NOT NULL
+                        REFERENCES transportista (cod_transporte)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    cod_postal          VARCHAR(10)     NOT NULL
+                        REFERENCES localidad (cod_postal)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    PRIMARY KEY (cod_transporte, cod_postal)
+);
+
+CREATE TABLE ingreso (
+    cod_ingreso         INTEGER             GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    fecha               DATE                NOT NULL DEFAULT CURRENT_DATE,
+    estado              estado_documento    NOT NULL DEFAULT 'en_confeccion',
+    cod_transporte      INTEGER             NOT NULL
+                        REFERENCES transportista (cod_transporte)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    cuit_bodega         cuit_dom            NOT NULL
+                        REFERENCES bodega (cuit)
+                        ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE renglon_ingreso (
+    cod_ingreso         INTEGER         NOT NULL
+                        REFERENCES ingreso (cod_ingreso)
+                        ON DELETE CASCADE ON UPDATE CASCADE,
+    cod_vino            INTEGER         NOT NULL
+                        REFERENCES vino (cod_vino)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    cantidad            INTEGER         NOT NULL CHECK (cantidad > 0),
+    PRIMARY KEY (cod_ingreso, cod_vino)
+);
+
+CREATE TABLE transferencia (
+    nro_transferencia   INTEGER             GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_sala             INTEGER             NOT NULL
+                        REFERENCES sala_venta (id_sala)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    fecha_confeccion    DATE                NOT NULL DEFAULT CURRENT_DATE,
+    estado              estado_documento    NOT NULL DEFAULT 'en_confeccion'
+);
+
+CREATE TABLE renglon_transferencia (
+    nro_transferencia   INTEGER         NOT NULL
+                        REFERENCES transferencia (nro_transferencia)
+                        ON DELETE CASCADE ON UPDATE CASCADE,
+    cod_vino            INTEGER         NOT NULL
+                        REFERENCES vino (cod_vino)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    cantidad            INTEGER         NOT NULL CHECK (cantidad > 0),
+    PRIMARY KEY (nro_transferencia, cod_vino)
+);
+
+CREATE TABLE stock_sala (
+    id_sala             INTEGER         NOT NULL
+                        REFERENCES sala_venta (id_sala)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    cod_vino            INTEGER         NOT NULL
+                        REFERENCES vino (cod_vino)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    cantidad            INTEGER         NOT NULL DEFAULT 0 CHECK (cantidad >= 0),
+    PRIMARY KEY (id_sala, cod_vino)
+);
+
+CREATE TABLE stock_deposito (
+    cod_vino            INTEGER         PRIMARY KEY
+                        REFERENCES vino (cod_vino)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    cantidad            INTEGER         NOT NULL DEFAULT 0 CHECK (cantidad >= 0)
+);
+
+-- -----------------------------------------------------------------------------
+-- 7. AUDITORÍA (RN-13)
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE auditoria_precio (
+    id_auditoria        INTEGER         GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    cod_vino            INTEGER         NOT NULL
+                        REFERENCES vino (cod_vino)
+                        ON DELETE RESTRICT ON UPDATE CASCADE,
+    precio_anterior     NUMERIC(12,2)   NOT NULL CHECK (precio_anterior > 0),
+    precio_nuevo        NUMERIC(12,2)   NOT NULL CHECK (precio_nuevo > 0),
+    fecha_hora          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    usuario             VARCHAR(80)     NOT NULL DEFAULT CURRENT_USER
+);
 
 COMMIT;

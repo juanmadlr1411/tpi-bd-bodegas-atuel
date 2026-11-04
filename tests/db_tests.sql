@@ -1,51 +1,85 @@
--- =======================================================================================
--- HITO 2: SCRIPT DE PRUEBAS UNITARIAS (QA)
--- Autor: Juan Manuel (Infraestructura y QA)
--- Objetivo: Validar Reglas de Negocio (RN) mediante casos de éxito y falla esperada.
--- =======================================================================================
+-- ===================================================================
+-- SCRIPT DE AUDITORÍA Y TESTING (QA) - ETAPA 2
+-- Proyecto: Bodegas del Atuel
+-- Responsable: Juan Manuel
+-- ===================================================================
 
--- ---------------------------------------------------------------------------------------
--- TEST 1: RN-09 (Validación de stock en venta) - FALLA ESPERADA
--- Disparador: Trigger BEFORE INSERT en renglon_comprobante (Manuel/Bruno)
--- Error esperado: Rechazo por stock insuficiente en la sala.
--- ---------------------------------------------------------------------------------------
+\echo '---------------------------------------------------'
+\echo 'INICIANDO BATERÍA DE PRUEBAS QA (Reglas de Negocio)'
+\echo '---------------------------------------------------'
+
+-- ---------------------------------------------------------
+-- Bloque 1: Seguridad y Roles (007_roles.sql)
+-- ---------------------------------------------------------
+\echo '>> TEST 1: Permisos de rol_reportes_ro (Debe fallar por permisos)'
 BEGIN;
-    -- Intentamos vender 5000 botellas de un vino que sabemos que no tiene ese stock
-    INSERT INTO renglon_comprobante (id_comprobante, id_vino, cantidad, precio_unitario)
-    VALUES (1, 1, 5000, 15000);
+SET ROLE rol_reportes_ro;
+INSERT INTO public.vino (nombre, tipo, anada, volumen_ml, precio, graduacion, cuit_bodega) VALUES ('Vino QA', 'tinto', 2026, 750, 1000, 13.5, '30111111118');
+RESET ROLE;
 ROLLBACK;
 
-
--- ---------------------------------------------------------------------------------------
--- TEST 2: RN-05 (Suma de porcentajes de corte) - ÉXITO ESPERADO
--- Disparador: CONSTRAINT TRIGGER DEFERRABLE (Manuel)
--- Comportamiento esperado: La transacción hace COMMIT exitosamente porque suma 100%.
--- ---------------------------------------------------------------------------------------
+-- ---------------------------------------------------------
+-- Bloque 2: RN-15 (Restricciones de Dominio y CHECK)
+-- ---------------------------------------------------------
+\echo '>> TEST 2: Restricciones CHECK de valores positivos (Debe fallar)'
 BEGIN;
-    INSERT INTO composicion_vino (id_vino, id_cepa, porcentaje) VALUES (2, 1, 60.00);
-    INSERT INTO composicion_vino (id_vino, id_cepa, porcentaje) VALUES (2, 2, 40.00);
-COMMIT;
-
-
--- ---------------------------------------------------------------------------------------
--- TEST 3: RN-12 (Bloqueo de renglones) - FALLA ESPERADA
--- Disparador: Trigger BEFORE UPDATE en renglon_ingreso (Bruno)
--- Error esperado: No admite cambios si el documento ya no está 'en_confeccion'.
--- ---------------------------------------------------------------------------------------
-BEGIN;
-    -- Intentamos modificar la cantidad de un renglón que pertenece a un ingreso 'procesado'
-    UPDATE renglon_ingreso 
-    SET cantidad = 150 
-    WHERE id_ingreso = 2; -- Asumiendo que el ingreso 2 está procesado
+INSERT INTO public.vino (nombre, tipo, anada, volumen_ml, precio, graduacion, cuit_bodega) VALUES ('Falla Precio', 'blanco', 2026, 750, -500, 12.0, '30111111118');
 ROLLBACK;
 
-
--- ---------------------------------------------------------------------------------------
--- TEST 4: CHECK Básico (Precio > 0) - FALLA ESPERADA
--- Disparador: Restricción CHECK en tabla vino (Punto 1 de la rúbrica)
--- Error esperado: Violación del constraint CHECK (precio_sugerido > 0).
--- ---------------------------------------------------------------------------------------
+\echo '>> TEST 3: Restricción CHECK de graduación alcohólica (Debe fallar)'
 BEGIN;
-    UPDATE vino SET precio_sugerido = -500 WHERE id_vino = 1;
+INSERT INTO public.vino (nombre, tipo, anada, volumen_ml, precio, graduacion, cuit_bodega) VALUES ('Falla Graduacion', 'tinto', 2026, 750, 2000, 45.0, '30111111118');
 ROLLBACK;
 
+-- ---------------------------------------------------------
+-- Bloque 3: RN-07 (Incongruencia de Fechas)
+-- ---------------------------------------------------------
+\echo '>> TEST 4: Fechas incongruentes en permisos (Debe fallar)'
+BEGIN;
+INSERT INTO public.permiso_exportacion (fecha_emision, fecha_vencimiento) VALUES ('2026-11-10', '2026-11-01');
+ROLLBACK;
+
+-- ---------------------------------------------------------
+-- Bloque 4: RN-05 (Composición de Cepas)
+-- ---------------------------------------------------------
+\echo '>> TEST 5: Composición de cepas distinto a 100% (Debe fallar en el COMMIT)'
+BEGIN;
+ALTER TABLE public.vino DISABLE TRIGGER ALL;
+INSERT INTO public.vino (cod_vino, nombre, tipo, anada, volumen_ml, precio, graduacion, cuit_bodega) OVERRIDING SYSTEM VALUE VALUES (9999, 'Vino Cepa', 'tinto', 2026, 750, 1000, 13.5, '30111111118');
+ALTER TABLE public.vino ENABLE TRIGGER ALL;
+
+-- Acá está el arreglo: uvas 'tinta' en lugar de 'tinto'
+INSERT INTO public.cepa (id_cepa, nombre, tipo) OVERRIDING SYSTEM VALUE VALUES (9998, 'Cepa A', 'tinta'), (9999, 'Cepa B', 'tinta');
+
+INSERT INTO public.composicion_vino (cod_vino, id_cepa, porcentaje) VALUES (9999, 9998, 40.00);
+INSERT INTO public.composicion_vino (cod_vino, id_cepa, porcentaje) VALUES (9999, 9999, 40.00);
+-- Debería saltar la excepción RN-05 del trigger de Br1
+COMMIT; 
+
+-- ---------------------------------------------------------
+-- Bloque 5: RN-10 y RN-11 (Lógica Transaccional)
+-- ---------------------------------------------------------
+\echo '>> TEST 6: Procesar ingreso inexistente o no terminado (Debe fallar)'
+BEGIN;
+CALL public.sp_procesar_ingreso(9999);
+ROLLBACK;
+
+\echo '>> TEST 7: Procesar transferencia inexistente (Debe fallar)'
+BEGIN;
+CALL public.sp_procesar_transferencia(9999);
+ROLLBACK;
+
+-- ---------------------------------------------------------
+-- Bloque 6: RN-11 (Inmutabilidad de Documentos)
+-- ---------------------------------------------------------
+\echo '>> TEST 8: Modificar transferencia procesada (Debe fallar)'
+BEGIN;
+ALTER TABLE public.transferencia DISABLE TRIGGER ALL;
+INSERT INTO public.transferencia (nro_transferencia, id_sala, estado) OVERRIDING SYSTEM VALUE VALUES (9999, 1, 'procesado');
+ALTER TABLE public.transferencia ENABLE TRIGGER ALL;
+UPDATE public.transferencia SET estado = 'en_confeccion' WHERE nro_transferencia = 9999;
+ROLLBACK;
+
+\echo '---------------------------------------------------'
+\echo 'BATERÍA DE PRUEBAS FINALIZADA'
+\echo '---------------------------------------------------'

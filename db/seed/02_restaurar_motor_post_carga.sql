@@ -16,6 +16,7 @@ ALTER TABLE composicion_vino      ENABLE TRIGGER USER;
 ALTER TABLE auditoria_precio      ENABLE TRIGGER USER;
 
 ALTER TABLE cliente               ENABLE TRIGGER USER;
+ALTER TABLE permiso_exportacion   ENABLE TRIGGER USER;
 ALTER TABLE comprobante           ENABLE TRIGGER USER;
 ALTER TABLE renglon_comprobante   ENABLE TRIGGER USER;
 

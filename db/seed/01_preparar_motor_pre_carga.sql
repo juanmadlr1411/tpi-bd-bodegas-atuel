@@ -16,8 +16,9 @@ ALTER TABLE vino                  DISABLE TRIGGER USER;
 ALTER TABLE composicion_vino      DISABLE TRIGGER USER;
 ALTER TABLE auditoria_precio      DISABLE TRIGGER USER;
 
--- 2. Subdominio Clientes y Ventas (RN-06: descuento, RN-08: totales, RN-09: stock)
+-- 2. Subdominio Clientes y Ventas (RN-06: descuento, RN-07: permisos, RN-08: totales, RN-09: stock)
 ALTER TABLE cliente               DISABLE TRIGGER USER;
+ALTER TABLE permiso_exportacion   DISABLE TRIGGER USER;
 ALTER TABLE comprobante           DISABLE TRIGGER USER;
 ALTER TABLE renglon_comprobante   DISABLE TRIGGER USER;
 

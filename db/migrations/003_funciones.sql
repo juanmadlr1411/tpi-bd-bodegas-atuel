@@ -2,7 +2,7 @@
 -- TPI BASES DE DATOS - UTN FRSR (2026)
 -- Proyecto: Bodegas del Atuel
 -- Archivo: db/migrations/003_funciones.sql (Etapa 2 - H2: Funciones)
--- Responsable: Gonzalo (Onza)
+-- Responsable: Gonzalo
 -- =============================================================================
 
 BEGIN;
@@ -77,7 +77,10 @@ $$;
 -- 4. FUNCIÓN: fn_total_comprobante
 -- Propósito: Calcula el importe total neto de un comprobante sumando el
 --            importe de todos sus renglones con su respectivo porcentaje de
---            descuento aplicado (RN-08). Si no tiene renglones, retorna 0.00.
+--            descuento histórico aplicado (RN-08), redondeando cada línea a
+--            dos decimales antes de acumular. De esta forma, el resultado
+--            coincide con SUM(renglon_comprobante.subtotal). Si no tiene
+--            renglones, retorna 0.00.
 -- Parámetros:
 --   - p_nro_comprobante (INTEGER): Número de comprobante (nro_comprobante).
 -- Volatilidad: STABLE, porque consulta las filas de renglon_comprobante.
@@ -86,7 +89,7 @@ CREATE OR REPLACE FUNCTION fn_total_comprobante(p_nro_comprobante INTEGER)
 RETURNS NUMERIC(14,2)
 LANGUAGE sql STABLE AS $$
     SELECT COALESCE(
-        ROUND(SUM(cantidad * precio_unitario * (1 - (descuento / 100.0))), 2),
+        SUM(ROUND(cantidad * precio_unitario * (1 - (descuento / 100.0)), 2)),
         0.00
     )
     FROM renglon_comprobante

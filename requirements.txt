@@ -1,0 +1,4 @@
+Faker==40.44.0
+psycopg==3.3.8
+python-dotenv==1.2.4
+typing_extensions==4.16.0

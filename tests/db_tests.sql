@@ -53,7 +53,7 @@ INSERT INTO public.cepa (id_cepa, nombre, tipo) OVERRIDING SYSTEM VALUE VALUES (
 
 INSERT INTO public.composicion_vino (cod_vino, id_cepa, porcentaje) VALUES (9999, 9998, 40.00);
 INSERT INTO public.composicion_vino (cod_vino, id_cepa, porcentaje) VALUES (9999, 9999, 40.00);
--- Debería saltar la excepción RN-05 del trigger de Br1
+-- Debería saltar la excepción RN-05 del trigger de Bruno
 COMMIT; 
 
 -- ---------------------------------------------------------

@@ -2,7 +2,7 @@
 -- TPI BASES DE DATOS - UTN FRSR (2026)
 -- Proyecto: Bodegas del Atuel
 -- Archivo: db/migrations/002_constraints.sql (Etapa 2 - H2: Integrity Constraints)
--- Responsable: Br1 (Integrante 3)
+-- Responsable: Bruno
 -- =============================================================================
 
 BEGIN;

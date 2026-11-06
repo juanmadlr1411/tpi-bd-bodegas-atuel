@@ -2,7 +2,7 @@
 -- TPI BASES DE DATOS - UTN FRSR (2026)
 -- Proyecto: Bodegas del Atuel
 -- Archivo: db/migrations/005_triggers.sql (Etapa 2 - H2: Business Logic & Triggers)
--- Responsable: Br1 (Integrante 3)
+-- Responsable: Bruno
 -- =============================================================================
 
 BEGIN;

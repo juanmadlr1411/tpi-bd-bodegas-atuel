@@ -354,7 +354,7 @@ def main():
         )
         cursor = conn.cursor()
 
-        # Desactivación de triggers previa de Onza
+        # Desactivación previa de triggers
         ruta_pre = buscar_archivo(["01_preparar_motor_pre_carga.sql"])
         if ruta_pre:
             print("\nEjecutando script pre-carga (desactivación de triggers)...")
@@ -379,7 +379,7 @@ def main():
 
         conn.commit()
         print("\n¡Carga de todas las tablas maestras completada con éxito!")
-        print("Bando ya puede ejecutar su script transaccional.")
+        print("El script transaccional ya puede ejecutarse.")
 
     except Exception as e:
         if 'conn' in locals():

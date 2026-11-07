@@ -2,11 +2,15 @@ import os
 import csv
 import random
 import psycopg
+from datetime import date, timedelta
 from faker import Faker
 from dotenv import load_dotenv
 
 load_dotenv()
+random.seed(2026)
+Faker.seed(2026)
 fake = Faker('es_AR')
+fake.seed_instance(2026)
 
 def buscar_archivo(opciones):
     """Busca la ubicación de un archivo en db/seed/ o en la raíz."""
@@ -200,7 +204,7 @@ def generar_salas_y_empleados(cursor, codigos_postales, cantidad_salas=6):
         for _ in range(3):
             cuit_emp = generar_cuit()
             nombre_emp = fake.name()
-            fecha_ing = fake.date_between(start_date='-5y', end_date='today')
+            fecha_ing = fake.date_between(start_date=date(2021, 1, 1), end_date=date(2021, 12, 31))
             salario = round(random.uniform(700000.0, 1400000.0), 2)
             
             cursor.execute("""
@@ -301,16 +305,22 @@ def generar_vinos(cursor, bodegas_cuits, cepas_ids, maridajes_ids, cantidad=40):
 def generar_clientes(cursor, codigos_postales, cantidad=1000):
     print(f"\nIniciando generación de {cantidad} clientes con Faker...")
     habilitaciones_usadas = set()
+    codigos_permiso_usados = set()
+    documentos_usados = set()
 
-    for _ in range(cantidad):
+    for i in range(cantidad):
         tipo = random.choice(['socio', 'distribuidor', 'exportador'])
         desc = 10.00 if tipo == 'socio' else (20.00 if tipo == 'distribuidor' else 30.00)
         
         nombre = fake.company()
-        cuit = generar_cuit()
+        while True:
+            cuit = generar_cuit()
+            if cuit not in documentos_usados:
+                documentos_usados.add(cuit)
+                break
         direccion = fake.address().replace('\n', ', ')
         cp = random.choice(codigos_postales)
-        fecha_alta = fake.date_between(start_date='-5y', end_date='today')
+        fecha_alta = fake.date_between(start_date=date(2021, 1, 1), end_date=date(2021, 12, 31))
 
         cursor.execute("""
             INSERT INTO cliente (nombre_razon_social, tipo_documento, nro_documento, direccion, cod_postal, fecha_alta, tipo_cliente, porcentaje_descuento)
@@ -337,7 +347,100 @@ def generar_clientes(cursor, codigos_postales, cantidad=1000):
                 VALUES (%s, %s)
             """, (id_cliente, fake.country()))
 
+            # Garantiza que algunos exportadores tengan más de 3 permisos.
+            cantidad_permisos = random.randint(4, 5) if i % 3 == 0 else random.randint(1, 5)
+            for _ in range(cantidad_permisos):
+                while True:
+                    cod_permiso = fake.bothify(text='EXP-######')
+                    if cod_permiso not in codigos_permiso_usados:
+                        codigos_permiso_usados.add(cod_permiso)
+                        break
+                fecha_emision = fake.date_between(
+                    start_date=date(2021, 1, 1),
+                    end_date=date(2022, 12, 31)
+                )
+                fecha_vencimiento = fecha_emision + timedelta(days=random.randint(180, 730))
+                cursor.execute("""
+                    INSERT INTO permiso_exportacion
+                        (cod_permiso, id_cliente, fecha_emision, fecha_vencimiento)
+                    VALUES (%s, %s, %s, %s)
+                """, (cod_permiso, id_cliente, fecha_emision, fecha_vencimiento))
+
     print(f"  [✓] cliente y subtipos: {cantidad} clientes generados.")
+
+def generar_lotes_y_analisis(cursor, bodegas_cuits):
+    print("\nIniciando generación de lotes de uva y análisis de calidad...")
+    cursor.execute("SELECT id_finca, nro_parcela FROM parcela")
+    parcelas = cursor.fetchall()
+    total_lotes = 0
+    total_analisis = 0
+
+    for id_finca, nro_parcela in parcelas:
+        for campania in range(2021, 2026):
+            fecha_cosecha = date(
+                campania,
+                random.randint(2, 4),
+                random.randint(1, 28)
+            )
+            kilos = round(random.uniform(5000.0, 25000.0), 2)
+            cuit_bodega = random.choice(bodegas_cuits)
+
+            cursor.execute("""
+                INSERT INTO lote_uva
+                    (id_finca, nro_parcela, campania, fecha_cosecha, kilos, cuit_bodega)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING nro_lote
+            """, (id_finca, nro_parcela, campania, fecha_cosecha, kilos, cuit_bodega))
+            nro_lote = cursor.fetchone()[0]
+            total_lotes += 1
+
+            for _ in range(random.randint(1, 2)):
+                fecha_analisis = fecha_cosecha + timedelta(days=random.randint(1, 15))
+                cursor.execute("""
+                    INSERT INTO analisis_calidad
+                        (nro_lote, fecha, grado_brix, ph, acidez_total)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (
+                    nro_lote,
+                    fecha_analisis,
+                    round(random.uniform(20.0, 26.0), 2),
+                    round(random.uniform(3.2, 3.8), 2),
+                    round(random.uniform(4.5, 7.0), 2),
+                ))
+                total_analisis += 1
+
+    print(f"  [✓] lote_uva y analisis_calidad: {total_lotes} lotes y {total_analisis} análisis insertados.")
+
+def generar_auditoria_precios(cursor, vinos_ids):
+    print("\nIniciando generación de auditorías de precio...")
+    if not vinos_ids:
+        print("  [!] No hay vinos para auditar.")
+        return
+
+    seleccionados = random.sample(vinos_ids, k=max(1, len(vinos_ids) // 4))
+    total = 0
+
+    for cod_vino in seleccionados:
+        cursor.execute("SELECT precio FROM vino WHERE cod_vino = %s", (cod_vino,))
+        precio_anterior = cursor.fetchone()[0]
+        precio_nuevo = round(precio_anterior * random.uniform(1.05, 1.25), 2)
+
+        cursor.execute(
+            "UPDATE vino SET precio = %s WHERE cod_vino = %s",
+            (precio_nuevo, cod_vino)
+        )
+
+        # El trigger de auditoría está deshabilitado durante la pre-carga:
+        # se inserta el registro directamente para asegurar el poblado.
+        cursor.execute("""
+            INSERT INTO auditoria_precio
+                (cod_vino, precio_anterior, precio_nuevo)
+            VALUES (%s, %s, %s)
+        """, (cod_vino, precio_anterior, precio_nuevo))
+        total += 1
+
+    print(f"  [✓] auditoria_precio: {total} registros insertados.")
+
 # -----------------------------------------------------------------------------
 # FLUJO PRINCIPAL
 # -----------------------------------------------------------------------------
@@ -371,11 +474,14 @@ def main():
         # Step 2: Generación de Entidades Maestras con Faker
         print("\n--- 2. GENERACIÓN DE ENTIDADES MAESTRAS ---")
         bodegas = generar_bodegas(cursor, 10)
-        generar_fincas_y_parcelas(cursor, cepas, 12)
-        generar_salas_y_empleados(cursor, cps, 6)
-        generar_transportistas(cursor, cps, 5)
-        generar_vinos(cursor, bodegas, cepas, maridajes, 40)
-        generar_clientes(cursor, cps, 1000)
+        generar_fincas_y_parcelas(cursor, cepas, 15)
+        generar_salas_y_empleados(cursor, cps, 15)
+        generar_transportistas(cursor, cps, 10)
+        vinos = generar_vinos(cursor, bodegas, cepas, maridajes, 300)
+        generar_clientes(cursor, cps, 20000)
+
+        generar_lotes_y_analisis(cursor, bodegas)
+        generar_auditoria_precios(cursor, vinos)
 
         conn.commit()
         print("\n¡Carga de todas las tablas maestras completada con éxito!")

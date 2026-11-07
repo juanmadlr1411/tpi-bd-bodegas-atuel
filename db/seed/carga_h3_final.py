@@ -14,12 +14,12 @@ from collections import Counter
 from datetime import date
 from time import perf_counter
 
-from carga_transaccional import conectar
+from conexion import conectar
 from datos_maestros import obtener_datos_maestros
 from inventario_historico import InventarioHistorico
 from plan_carga import ConfiguracionCarga, planificar_carga
 from simular_carga_58_meses import simular_mes
-from probar_lotes_h3 import insertar_lote_ingresos, insertar_lote_transferencias
+from persistencia_transaccional import insertar_lote_ingresos, insertar_lote_transferencias
 from persistencia_transaccional import consultar_estado, consultar_stock_detallado
 
 

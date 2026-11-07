@@ -5,7 +5,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from plan_carga import ConfiguracionCarga, planificar_carga
 from inventario_historico import InventarioHistorico
 from datos_maestros import obtener_datos_maestros, obtener_disponibles
-from carga_transaccional import conectar
+from conexion import conectar
 
 
 def simular_mes(

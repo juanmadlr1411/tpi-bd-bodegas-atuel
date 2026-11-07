@@ -1,6 +1,6 @@
 from datetime import date
 
-from carga_transaccional import conectar
+from conexion import conectar
 
 
 def obtener_datos_maestros(conn):

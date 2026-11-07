@@ -18,6 +18,11 @@ def obtener_datos_maestros(conn):
             ORDER BY id_cliente
         """)
         clientes = cursor.fetchall()
+        cursor.execute("""
+            SELECT id_cliente, porcentaje_descuento
+            FROM cliente ORDER BY id_cliente
+        """)
+        descuentos_clientes = dict(cursor.fetchall())
 
         # Vinos, bodegas, añadas y precios.
         cursor.execute("""
@@ -47,6 +52,7 @@ def obtener_datos_maestros(conn):
 
     return {
         "clientes": clientes,
+        "descuentos_clientes": descuentos_clientes,
         "vinos": vinos,
         "salas": salas,
         "transportistas": transportistas

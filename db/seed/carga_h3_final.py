@@ -29,30 +29,47 @@ CLAVES_CANTIDAD = ("ingresos", "renglones_ingreso", "transferencias",
 
 
 def verificar_reglas_ventas(conn):
-    """Prueba RN-08/RN-09 en una transaccion que siempre se revierte."""
+    """Prueba RN-08, RN-09 y descuento en una transaccion reversible.
+
+    Funciona tambien en una base limpia: crea stock temporal y lo revierte.
+    """
+    from decimal import Decimal, ROUND_HALF_UP
+
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT s.id_sala, s.cod_vino, s.cantidad, v.precio
-                FROM stock_sala s
-                JOIN vino v ON v.cod_vino = s.cod_vino
-                WHERE s.cantidad >= 2 AND v.anada <= %s
-                ORDER BY s.id_sala, s.cod_vino
-                LIMIT 1
+                SELECT s.id_sala, v.cod_vino, v.precio
+                  FROM sala_venta s CROSS JOIN vino v
+                 WHERE v.anada <= %s
+                 ORDER BY s.id_sala, v.cod_vino
+                 LIMIT 1
             """, (FECHA_PRUEBA.year,))
             item = cur.fetchone()
             if item is None:
-                return False, "No hay stock de sala suficiente para verificar RN-09."
-            sala, vino, stock_antes, precio = item
+                return False, "Faltan salas o vinos para comprobar las ventas."
+            sala, vino, precio = item
+
             cur.execute("""
-                SELECT id_cliente FROM cliente
-                WHERE fecha_alta <= %s AND porcentaje_descuento > 0
-                ORDER BY id_cliente LIMIT 1
+                SELECT id_cliente, porcentaje_descuento
+                  FROM cliente
+                 WHERE fecha_alta <= %s AND porcentaje_descuento > 0
+                 ORDER BY id_cliente LIMIT 1
             """, (FECHA_PRUEBA,))
             cliente_fila = cur.fetchone()
             if cliente_fila is None:
-                return False, "No hay cliente con descuento para comprobar RN-08."
-            cliente = cliente_fila[0]
+                return False, "No hay clientes con descuento para verificar RN-08."
+            cliente, descuento = cliente_fila
+
+            # Inventario provisional, siempre revertido al salir.
+            cur.execute("""
+                INSERT INTO stock_sala (id_sala, cod_vino, cantidad)
+                VALUES (%s, %s, 5)
+                ON CONFLICT (id_sala, cod_vino)
+                DO UPDATE SET cantidad = stock_sala.cantidad + 5
+                RETURNING cantidad
+            """, (sala, vino))
+            stock_antes = cur.fetchone()[0]
+
             cur.execute("""
                 INSERT INTO comprobante (fecha, id_cliente, id_sala)
                 VALUES (%s, %s, %s) RETURNING nro_comprobante
@@ -62,27 +79,45 @@ def verificar_reglas_ventas(conn):
                 INSERT INTO renglon_comprobante
                     (nro_comprobante, cod_vino, cantidad, precio_unitario,
                      descuento, subtotal)
-                VALUES (%s, %s, 1, %s, 0, %s)
-            """, (nro, vino, precio, precio))
+                VALUES (%s, %s, 1, %s, %s, %s)
+            """, (nro, vino, precio, descuento, precio))
+
             cur.execute("""
                 SELECT total, fn_total_comprobante(%s)
-                FROM comprobante WHERE nro_comprobante = %s
+                  FROM comprobante
+                 WHERE nro_comprobante = %s
             """, (nro, nro))
             total_cabecera, total_funcion = cur.fetchone()
             cur.execute("""
                 SELECT cantidad FROM stock_sala
-                WHERE id_sala = %s AND cod_vino = %s
+                 WHERE id_sala = %s AND cod_vino = %s
             """, (sala, vino))
             stock_despues = cur.fetchone()[0]
-            rn08 = total_cabecera == total_funcion
+            cur.execute("""
+                SELECT descuento, subtotal FROM renglon_comprobante
+                 WHERE nro_comprobante = %s AND cod_vino = %s
+            """, (nro, vino))
+            descuento_guardado, subtotal_guardado = cur.fetchone()
+
+            esperado = (precio * (
+                Decimal('1') - descuento / Decimal('100')
+            )).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            rn08 = (
+                total_cabecera == total_funcion == esperado
+                and subtotal_guardado == esperado
+                and descuento_guardado == descuento
+            )
             rn09 = stock_despues == stock_antes - 1
-            mensaje = (f"RN-08: {'OK' if rn08 else 'PENDIENTE'} "
-                       f"(cabecera={total_cabecera}, funcion={total_funcion}) | "
-                       f"RN-09: {'OK' if rn09 else 'PENDIENTE'} "
-                       f"(stock {stock_antes} -> {stock_despues})")
+            mensaje = (
+                f"RN-08: {'OK' if rn08 else 'PENDIENTE'} "
+                f"(cabecera={total_cabecera}, funcion={total_funcion}, "
+                f"esperado={esperado}, descuento={descuento}%) | "
+                f"RN-09: {'OK' if rn09 else 'PENDIENTE'} "
+                f"(stock {stock_antes} -> {stock_despues})"
+            )
             return rn08 and rn09, mensaje
     finally:
-        conn.rollback()  # La verificacion JAMAS deja una venta guardada.
+        conn.rollback()  # NUNCA conserva cambios de este chequeo.
 
 
 def insertar_lote_comprobantes(cur, documentos):
@@ -134,6 +169,21 @@ def validar_estado(cur, inicial, totales, inventario, stock_inicial):
     for clave in set(salas_antes) | set(salas_despues) | set(inventario.salas):
         diferencia = salas_despues.get(clave, 0) - salas_antes.get(clave, 0)
         assert diferencia == inventario.salas.get(clave, 0), f"Sala/vino: {clave}"
+    # No basta con totales correctos: cada venta debe aplicar el
+    # descuento del cliente y el importe calculado por RN-08.
+    cur.execute("""
+        SELECT COUNT(*)
+          FROM renglon_comprobante r
+          JOIN comprobante c USING (nro_comprobante)
+          JOIN cliente cl ON cl.id_cliente = c.id_cliente
+         WHERE r.descuento IS DISTINCT FROM cl.porcentaje_descuento
+    """)
+    assert cur.fetchone()[0] == 0, "Ventas con descuento incorrecto"
+    cur.execute("""
+        SELECT COUNT(*) FROM comprobante c
+         WHERE c.total IS DISTINCT FROM fn_total_comprobante(c.nro_comprobante)
+    """)
+    assert cur.fetchone()[0] == 0, "Totales de ventas incorrectos"
     assert all(cantidad >= 0 for cantidad in inventario.deposito.values())
     assert all(cantidad >= 0 for cantidad in inventario.salas.values())
 
@@ -160,6 +210,35 @@ def cargar(meses, confirmar):
             raise RuntimeError("No se cargó nada: falta corregir RN-08/RN-09 en esta BD.")
 
         with conn.cursor() as cur:
+            requeridos = {
+                "trg_actualizar_totales_comprobante",
+                "trg_validar_stock_venta",
+                "trg_actualizar_stock_venta",
+                "trg_validar_estado_ingreso",
+                "trg_validar_estado_transferencia",
+                "trg_bloquear_renglon_ingreso",
+                "trg_bloquear_renglon_transferencia",
+                "trg_fecha_confeccion_transferencia",
+            }
+            cur.execute("""
+                SELECT tgname FROM pg_trigger
+                 WHERE NOT tgisinternal AND tgenabled IN ('O', 'A')
+            """)
+            activos = {fila[0] for fila in cur.fetchall()}
+            faltantes = requeridos - activos
+            if faltantes:
+                raise RuntimeError(
+                    "Triggers H2 desactivados o ausentes: "
+                    + ", ".join(sorted(faltantes))
+                    + ". Ejecutar la restauracion post-carga de maestros."
+                )
+
+            # Excepcion controlada SOLO para el seed historico H3.
+            # PostgreSQL revierte el ALTER TABLE si la transaccion falla.
+            cur.execute("""
+                ALTER TABLE transferencia
+                DISABLE TRIGGER trg_fecha_confeccion_transferencia
+            """)
             inicial = consultar_estado(cur)
             cur.execute("SELECT COUNT(*) FROM comprobante")
             inicial["comprobantes"] = cur.fetchone()[0]
@@ -186,7 +265,21 @@ def cargar(meses, confirmar):
                 )
                 # Persistencia cronológica dentro del mes.
                 insertar_lote_ingresos(cur, ingresos)
+                # Verificar que RN-11 no reemplace la fecha historica.
+                fecha_historica = date(periodo["anio"], periodo["mes"], 15)
+                cur.execute(
+                    "SELECT COUNT(*) FROM transferencia WHERE fecha_confeccion = %s",
+                    (fecha_historica,),
+                )
+                anteriores_en_fecha = cur.fetchone()[0]
                 insertar_lote_transferencias(cur, transferencias)
+                cur.execute(
+                    "SELECT COUNT(*) FROM transferencia WHERE fecha_confeccion = %s",
+                    (fecha_historica,),
+                )
+                assert cur.fetchone()[0] - anteriores_en_fecha == len(transferencias), (
+                    "Las fechas historicas de transferencia no se conservaron"
+                )
                 insertar_lote_comprobantes(cur, comprobantes)
                 totales.update(resultado)
                 print(
@@ -195,6 +288,12 @@ def cargar(meses, confirmar):
                     f"V={len(comprobantes)}"
                 )
             validar_estado(cur, inicial, totales, inventario, stock_inicial)
+            # Reactivar ANTES del COMMIT; la regla RN11 sigue vigente
+            # para las operaciones normales posteriores a la carga.
+            cur.execute("""
+                ALTER TABLE transferencia
+                ENABLE TRIGGER trg_fecha_confeccion_transferencia
+            """)
             if confirmar:
                 assert totales["ingresos"] == config.ingresos
                 assert totales["transferencias"] == config.transferencias

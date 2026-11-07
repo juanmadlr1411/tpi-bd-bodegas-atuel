@@ -1,5 +1,6 @@
 import random
 from datetime import date
+from decimal import Decimal, ROUND_HALF_UP
 
 from plan_carga import ConfiguracionCarga, planificar_carga
 from inventario_historico import InventarioHistorico
@@ -252,13 +253,18 @@ def simular_mes(
         for cod_vino, cantidad in renglones:
 
             precio = precios_vinos[cod_vino]
+            descuento = datos["descuentos_clientes"][id_cliente]
+            subtotal = (
+                precio * cantidad *
+                (Decimal("1") - descuento / Decimal("100"))
+            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
             detalle.append({
                 "cod_vino": cod_vino,
                 "cantidad": cantidad,
                 "precio_unitario": precio,
-                "descuento": 0,
-                "subtotal": precio * cantidad
+                "descuento": descuento,
+                "subtotal": subtotal
             })
 
         documento = {

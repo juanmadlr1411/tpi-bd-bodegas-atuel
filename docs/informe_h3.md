@@ -118,19 +118,39 @@ Se verificó la carga completa sobre la base de datos local, superando las exige
 
 ---
 
-## 4. Comparativa de Rendimiento y Tiempos de Carga (Fila por Fila vs. Por Lotes)
+## 4. Comparación de inserción fila por fila versus por lotes (medición reproducible)
 
-Para cumplir con el Paso 6 de la Etapa 3, se midió la diferencia de rendimiento entre ejecutar sentencias `INSERT` individuales (`cursor.execute` fila por fila) frente a la inserción por lotes (`executemany` / `execute_values` en bloques transaccionales a través de `persistencia_transaccional.py`).
+Se agregó el archivo `db/seed/medir_inserciones_h3.py`, que inserta **la misma
+muestra de 1,000 filas** en una **tabla temporal** PostgreSQL,
+primero con `cursor.execute()` individual y después con `cursor.executemany()`.
+Tras cada método se comprueba el `COUNT(*)`. Todas las inserciones son
+revertidas; no se modifican las tablas operativas.
 
-| Método de Inserción | Muestra Evaluada | Tiempo Medido | Rendimiento Promedio | Proyección para 789.349 filas transaccionales |
-| :--- | ---: | ---: | ---: | ---: |
-| **Inserción Fila por Fila** (`cursor.execute`) | 10.000 filas | 18,40 s | ~543 filas/s | ~24 min 13 s (solo red/parseo, sin triggers) |
-| **Inserción por Lotes** (Batch `executemany`) | 10.000 filas | 0,62 s | ~16.129 filas/s | **~48,9 s** (reducción del 96,6% en I/O) |
+| Método | Muestra | Tiempo medido |
+|---|---:|---:|
+| Fila por fila (`execute`) | 1,000 | **0.1131 s** |
+| Por lotes (`executemany`) | 1,000 | **0.0139 s** |
 
-### Resumen de Tiempos del Proceso Completo
-* **Carga de Catálogos CSV y Tablas Maestras (`carga_maestras.py`):** ~2,4 segundos.
-* **Simulación cronológica de inventario (58 meses) + Carga Transaccional (`carga_h3_final.py`):** 789.349 registros insertados y validados en transacción.
-* **Refresco de Vista Materializada (`mv_ventas_mensuales_sala`) y `ANALYZE`:** ~1,8 segundos.
+Relación temporal de esta ejecución: **8.17x**.
+
+**Alcance:** es una comparación del método de envío/inserción para una tabla
+temporal **sin triggers ni claves foráneas**. Los resultados no deben
+presentarse como tiempos de carga del esquema transaccional real ni
+extrapolarse directamente a 789.349 filas.
+
+**Tiempo real registrado de generación y persistencia histórica:**
+**19.342,15 segundos (~5 h 22 min)** para 58 meses, con triggers de negocio
+activos salvo la excepción transaccional del trigger de fecha RN-11.
+
+**Documentos pendientes:** el generador principal crea automáticamente
+los pendientes en futuras cargas definitivas; para una base ya cargada se
+incorporó `db/seed/agregar_pendientes_h3.py`, que añade 2 ingresos y 2 transferencias
+en `en_confeccion`, y la misma cantidad en `terminado`, siempre con renglones.
+Estos movimientos no impactan stock porque no se procesan. La vista
+`vw_documentos_pendientes` pasa a ofrecer 8 documentos para S5.
+La tabla de conteos históricos de la sección anterior corresponde al lote
+**antes de esta poscarga**. Después, el total transaccional pasa de 789.349
+a **789.365 registros**.
 
 ---
 

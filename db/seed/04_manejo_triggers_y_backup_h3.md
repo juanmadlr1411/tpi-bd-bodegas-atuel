@@ -15,19 +15,30 @@ Durante la operación normal del sistema, los triggers implementados en `005_tri
 
 ---
 
-## 2. Decisión Técnica: `DISABLE TRIGGER USER` vs `DISABLE TRIGGER ALL`
+## 2. Decisión implementada: triggers en maestros y transacciones
 
-En PostgreSQL existen dos variantes para desactivar triggers en una tabla:
-* `ALTER TABLE ... DISABLE TRIGGER ALL`: Desactiva tanto los triggers definidos por el programador como los triggers internos del motor que implementan las restricciones `FOREIGN KEY` (`RI_ConstraintTrigger`). Además, exige privilegios de `SUPERUSER` (lo cual es incompatible con bases de datos gestionadas en la nube en la Etapa 8).
-* `ALTER TABLE ... DISABLE TRIGGER USER` (**Opción Elegida**): Desactiva únicamente los triggers de negocio creados por el grupo en la Etapa 2, **manteniendo activas todas las `FOREIGN KEY`, `PRIMARY KEY`, `UNIQUE` y `CHECK`**.
+El proyecto mantiene `ALTER TABLE ... DISABLE TRIGGER USER` para la **carga de
+maestros** mediante `db/seed/01_preparar_motor_pre_carga.sql`; esto preserva
+las claves foráneas del motor. A continuación se ejecuta
+`db/seed/02_restaurar_motor_post_carga.sql` para **rehabilitar los triggers**.
 
-### Flujo de Ejecución Implementado
-1. **Pre-carga (`db/seed/01_preparar_motor_pre_carga.sql`):** Se ejecuta `ALTER TABLE ... DISABLE TRIGGER USER;` sobre las tablas operativas antes de correr los scripts de Python.
-2. **Inyección por lotes (Python + `psycopg`):** Se cargan los catálogos maestros y los movimientos transaccionales con semilla fija (`seed`), calculando en origen los subtotales, totales, porcentajes de corte y stocks coherentes.
-3. **Post-carga (`db/seed/02_restaurar_motor_post_carga.sql`):**
-   * Se rehabilitan todos los triggers con `ALTER TABLE ... ENABLE TRIGGER USER;`.
-   * Se actualiza la vista materializada de reportes (`REFRESH MATERIALIZED VIEW mv_ventas_mensuales_sala;`).
-   * Se ejecuta `ANALYZE;` para actualizar las estadísticas del optimizador de PostgreSQL.
+**Durante la carga histórica transaccional** (`carga_h3_final.py`) se conserva
+activo el motor de negocio: RN-08 (totales y descuentos), RN-09 (stock),
+RN-10/RN-11 (transiciones de estado), RN-12 y las validaciones pertinentes.
+Se desactiva temporalmente **solo** `trg_fecha_confeccion_transferencia` dentro
+de la transacción de carga para insertar fechas antiguas; se habilita de
+nuevo antes del `COMMIT`, de forma que la operación normal siga protegida.
+
+No se desactivan los triggers de ventas durante el seed histórico. Desactivarlos
+sin sustituir sus efectos dejaría **totales de comprobantes y stock incorrectos**.
+Una futura modalidad rápida requeriría calcular y persistir explícitamente
+esos efectos y someterlos a una validación equivalente antes de adoptarla.
+
+**Tiempo observado con esta estrategia:** 19.342,15 segundos (aprox. 5 h 22 min)
+para los 58 meses. No se afirma que el lote actual pueda ejecutarse en segundos.
+La comparación de inserciones individuales y por lotes se realiza aparte con
+`db/seed/medir_inserciones_h3.py`, sobre una tabla temporal sin triggers; ver
+`docs/informe_h3.md`, sección 4.
 
 ---
 

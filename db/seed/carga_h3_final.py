@@ -295,6 +295,12 @@ def cargar(meses, confirmar):
                 ENABLE TRIGGER trg_fecha_confeccion_transferencia
             """)
             if confirmar:
+                # Los pendientes se crean DESPUÉS de validar la carga histórica,
+                # con los triggers ya reactivados y sin impactar las existencias.
+                from agregar_pendientes_h3 import insertar_pendientes
+                insertar_pendientes(cur)
+                print("Poscarga H3: 8 documentos pendientes y sus 8 renglones generados.")
+            if confirmar:
                 assert totales["ingresos"] == config.ingresos
                 assert totales["transferencias"] == config.transferencias
                 assert totales["comprobantes"] == config.comprobantes

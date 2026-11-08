@@ -1,6 +1,6 @@
 # Diccionario de Datos — Bodegas del Atuel
 
-## 1. Dominios y Tipos Enumerados (Responsable: Delgado)
+## 1. Dominios y Tipos Enumerados (Responsable: Juan Manuel)
 
 | Objeto | Tipo Base / Valores | Restricción | Descripción |
 | :--- | :--- | :--- | :--- |

@@ -7,7 +7,7 @@
 BEGIN;
 
 -- =============================================================================
--- 1. DOMINIOS Y TIPOS ENUMERADOS (Responsable: Delgado)
+-- 1. DOMINIOS Y TIPOS ENUMERADOS (Responsable: Juan Manuel)
 -- =============================================================================
 
 -- Dominio para validar que todo CUIT tenga exactamente 11 dígitos numéricos
@@ -33,7 +33,7 @@ CREATE TYPE dia_semana AS ENUM (
 
 
 -- =============================================================================
--- 2. SUBDOMINIO GEOGRAFÍA, SALAS Y PRODUCCIÓN DE UVA (Responsable: Onza)
+-- 2. SUBDOMINIO GEOGRAFÍA, SALAS Y PRODUCCIÓN DE UVA (Responsable: Gonzalo)
 -- Tablas: localidad, sala_venta, empleado, finca, cepa, parcela,
 --         lote_uva, analisis_calidad
 -- =============================================================================
@@ -121,7 +121,7 @@ CREATE TABLE analisis_calidad (
 
 
 -- =============================================================================
--- 3. SUBDOMINIO BODEGAS, VINOS Y CLIENTES (Responsable: Pelu)
+-- 3. SUBDOMINIO BODEGAS, VINOS Y CLIENTES (Responsable: Manuel)
 -- Tablas: bodega, vino, composicion_vino, maridaje, vino_maridaje,
 --         cliente, cliente_socio, cliente_distribuidor, cliente_exportador,
 --         permiso_exportacion
@@ -239,7 +239,7 @@ CREATE TABLE permiso_exportacion (
 
 
 -- =============================================================================
--- 4. SUBDOMINIO VENTAS, LOGÍSTICA, STOCK Y AUDITORÍA (Responsable: Br1)
+-- 4. SUBDOMINIO VENTAS, LOGÍSTICA, STOCK Y AUDITORÍA (Responsable: Bruno)
 -- Tablas: comprobante, renglon_comprobante, transportista,
 --         transportista_localidad, ingreso, renglon_ingreso, transferencia,
 --         renglon_transferencia, stock_sala, stock_deposito, auditoria_precio

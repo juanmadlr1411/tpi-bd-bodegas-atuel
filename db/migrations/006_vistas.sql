@@ -2,7 +2,7 @@
 -- TPI BASES DE DATOS - UTN FRSR (2026)
 -- Proyecto: Bodegas del Atuel
 -- Archivo: db/migrations/006_vistas.sql (Etapa 2 - H2: Vistas y Vista Materializada)
--- Responsable: Gonzalo (Onza)
+-- Responsable: Gonzalo
 -- =============================================================================
 
 BEGIN;

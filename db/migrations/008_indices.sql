@@ -12,3 +12,21 @@ CREATE INDEX IF NOT EXISTS idx_fk_renglon_transf_vino ON renglon_transferencia (
 -- Optimiza joins y agrupaciones por empresa transportista (consultas I1 y S7).
 -- Nota: No se incluye índice sobre renglon_comprobante(cod_vino) para delegarlo al índice INCLUDE.
 CREATE INDEX IF NOT EXISTS idx_fk_ingreso_transporte ON ingreso (cod_transporte);
+
+
+-- ==============================================================================
+-- BLOQUE 2: ÍNDICE COMPUESTO E ÍNDICE PARCIAL (Responsable: Gonzalo)
+-- ==============================================================================
+
+-- Índice Compuesto B-Tree sobre comprobante (id_sala, fecha).
+-- Primero condición de igualdad (id_sala) y luego condición de rango (fecha)
+-- para optimizar consultas acotadas por sala y ventana temporal (ej. S3 y S8).
+CREATE INDEX IF NOT EXISTS idx_comprobante_sala_fecha
+    ON comprobante (id_sala, fecha);
+
+-- Índice Parcial B-Tree sobre transferencia para documentos no procesados.
+-- Indexa únicamente la fracción activa ('en_confeccion' y 'terminado'),
+-- optimizando la vista vw_documentos_pendientes y la consulta S5.
+CREATE INDEX IF NOT EXISTS idx_transferencia_pendientes
+    ON transferencia (id_sala, fecha_confeccion)
+    WHERE estado <> 'procesado';

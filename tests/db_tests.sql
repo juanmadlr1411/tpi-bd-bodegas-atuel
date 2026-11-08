@@ -11,9 +11,9 @@
 -- ---------------------------------------------------------
 -- Bloque 1: Seguridad y Roles (007_roles.sql)
 -- ---------------------------------------------------------
-\echo '>> TEST 1: Permisos de rol_reportes_ro (Debe fallar por permisos)'
+\echo '>> TEST 1: Permisos de auditor_atuel (Debe fallar por permisos)'
 BEGIN;
-SET ROLE rol_reportes_ro;
+SET ROLE auditor_atuel;
 INSERT INTO public.vino (nombre, tipo, anada, volumen_ml, precio, graduacion, cuit_bodega) VALUES ('Vino QA', 'tinto', 2026, 750, 1000, 13.5, '30111111118');
 RESET ROLE;
 ROLLBACK;

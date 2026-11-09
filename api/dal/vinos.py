@@ -197,13 +197,16 @@ def actualizar_vino(cod_vino: int, update_data: dict[str, Any]) -> Optional[dict
     Actualiza atributos de un vino. Si se modifica el precio, el trigger de auditoría
     trg_auditar_cambio_precio registra el cambio automáticamente en auditoria_precio (RN-13).
     """
-    if not update_data:
+    ALLOWED_FIELDS = {"nombre", "tipo", "anada", "volumen_ml", "graduacion", "precio", "cuit_bodega"}
+    valid_updates = {k: v for k, v in update_data.items() if k in ALLOWED_FIELDS}
+
+    if not valid_updates:
         return obtener_vino_por_codigo(cod_vino)
 
     set_clauses = []
     params = []
 
-    for field, value in update_data.items():
+    for field, value in valid_updates.items():
         set_clauses.append(f"{field} = %s")
         params.append(value)
 
@@ -241,3 +244,4 @@ def eliminar_vino(cod_vino: int) -> bool:
                 cur.execute(query, (cod_vino,))
                 res = cur.fetchone()
                 return res is not None
+

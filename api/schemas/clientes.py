@@ -63,3 +63,4 @@ class PaginatedClientesResponse(BaseModel):
     limit: int
     offset: int
     items: list[ClienteResponse]
+

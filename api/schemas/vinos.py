@@ -92,3 +92,4 @@ class PaginatedVinosResponse(BaseModel):
     limit: int
     offset: int
     items: list[VinoListItem]
+

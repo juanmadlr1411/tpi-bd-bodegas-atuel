@@ -117,3 +117,4 @@ def test_eliminar_cliente_con_comprobantes_falla(client):
         # Restricción de borrado RN-14 -> SQLSTATE 23503 -> 409 Conflict
         assert response.status_code == 409
         assert response.json()["sqlstate"] == "23503"
+

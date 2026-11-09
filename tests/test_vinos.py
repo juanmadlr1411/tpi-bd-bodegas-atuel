@@ -1,4 +1,5 @@
 import pytest
+import uuid
 from fastapi.testclient import TestClient
 
 from api.main import app
@@ -66,8 +67,9 @@ def test_crear_vino_exitoso(client):
         id_cepa1 = cepas[0]["id_cepa"]
         id_cepa2 = cepas[1]["id_cepa"]
 
+    unique_name = f"Gran Reserva Test {uuid.uuid4().hex[:6]}"
     payload = {
-        "nombre": "Gran Reserva Especial Test",
+        "nombre": unique_name,
         "tipo": "tinto",
         "anada": 2022,
         "volumen_ml": 750,
@@ -127,8 +129,9 @@ def test_actualizar_vino_audita_precio(client):
         cur.execute("SELECT id_cepa FROM cepa LIMIT 1;")
         id_cepa = cur.fetchone()["id_cepa"]
 
+    unique_name = f"Vino Para Auditoria {uuid.uuid4().hex[:6]}"
     payload = {
-        "nombre": "Vino Para Auditoria",
+        "nombre": unique_name,
         "tipo": "rosado",
         "anada": 2024,
         "volumen_ml": 750,
@@ -170,3 +173,4 @@ def test_eliminar_vino_con_movimientos_falla(client):
         # La FK con ON DELETE RESTRICT debe arrojar 409 Conflict (SQLSTATE 23503)
         assert response.status_code == 409
         assert response.json()["sqlstate"] == "23503"
+

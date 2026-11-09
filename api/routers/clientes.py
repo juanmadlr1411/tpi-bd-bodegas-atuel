@@ -123,3 +123,4 @@ def eliminar_cliente(id_cliente: int):
         )
     clientes_dal.eliminar_cliente(id_cliente)
     return None
+

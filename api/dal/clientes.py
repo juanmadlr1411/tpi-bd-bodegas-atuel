@@ -203,3 +203,4 @@ def eliminar_cliente(id_cliente: int) -> bool:
                 cur.execute(query, (id_cliente,))
                 res = cur.fetchone()
                 return res is not None
+

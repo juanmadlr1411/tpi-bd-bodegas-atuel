@@ -30,3 +30,18 @@ CREATE INDEX IF NOT EXISTS idx_comprobante_sala_fecha
 CREATE INDEX IF NOT EXISTS idx_transferencia_pendientes
     ON transferencia (id_sala, fecha_confeccion)
     WHERE estado <> 'procesado';
+
+-- ==============================================================================
+-- BLOQUE 3: ÍNDICES ESPECIALES INCLUDE Y BRIN (Responsable: Santiago)
+-- ==============================================================================
+
+-- Índice covering para consultas de ventas agrupadas por vino.
+-- INCLUDE permite consultar cantidad y subtotal desde el índice.
+CREATE INDEX IF NOT EXISTS idx_rc_vino_include_cant
+    ON renglon_comprobante (cod_vino)
+    INCLUDE (cantidad, subtotal);
+
+-- Índice BRIN para consultas por rangos de fechas históricas.
+-- Aprovecha la correlación entre las fechas y el orden físico de inserción.
+CREATE INDEX IF NOT EXISTS idx_comprobante_fecha_brin
+    ON comprobante USING brin (fecha);

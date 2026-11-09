@@ -136,3 +136,212 @@ PostgreSQL implementa MVCC: un `UPDATE` crea una **nueva versión de la fila** e
 * **Almacenamiento:** 1,27 MB para 50.000 comprobantes, equivalentes a unos **26 bytes por fila** entre ambos índices. En la base completa de 150.000 comprobantes, el tamaño total de estos índices escala proporcionalmente.
 * **Diseño:** el índice parcial demuestra que se puede reducir drásticamente el costo de escritura indexando solo la fracción activa; el índice compuesto reutiliza el prefijo `id_sala` y evita un índice adicional; los índices de FK son necesarios para evitar `Seq Scan` en joins y en las verificaciones de `ON DELETE RESTRICT`. La contrapartida es que **cada escritura debe mantener todas las estructuras afectadas**, por lo que solo deben crearse índices justificados por consultas frecuentes o por integridad referencial.
 * **Alcance de la medición:** los triggers de negocio se desactivaron únicamente para aislar el costo de los índices. En producción, un `INSERT` de venta también ejecuta los triggers de totales y stock (RN-08/RN-09), cuyo costo es independiente del mantenimiento de índices y no forma parte de esta comparación.
+
+
+<!-- INICIO APORTE H4 SANTIAGO -->
+
+## 4. Índices especiales INCLUDE y BRIN — Responsable: Santiago
+
+### 4.1. Índice covering con `INCLUDE`
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_rc_vino_include_cant
+    ON renglon_comprobante (cod_vino)
+    INCLUDE (cantidad, subtotal);
+```
+
+`cod_vino` es la clave de búsqueda de un B-Tree. Las columnas `cantidad` y `subtotal`
+se almacenan como datos incluidos (no forman parte de la clave de ordenación). La consulta
+que filtra `cod_vino = 10` y suma esos valores puede atenderse mayormente con el índice,
+sin recorrer las 600.000 filas del heap. El plan observado es `Index Only Scan`, con
+`Heap Fetches: 5`, por lo que **no** corresponde afirmar que hubo cero accesos al heap.
+El mapa de visibilidad, actualizado con `VACUUM (ANALYZE)`, facilita ese tipo de recorrido.
+
+Consulta 3:
+
+```sql
+SELECT cod_vino, SUM(cantidad) AS botellas_vendidas, SUM(subtotal) AS monto_total
+FROM renglon_comprobante
+WHERE cod_vino = 10
+GROUP BY cod_vino;
+```
+
+### 4.2. Índice BRIN por fecha
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_comprobante_fecha_brin
+    ON comprobante USING brin (fecha);
+```
+
+BRIN almacena resúmenes de valores por rangos de páginas, en lugar de una referencia
+por fila. Resulta apropiado para el historial de comprobantes insertado por meses en
+orden cronológico. En la consulta de agosto a octubre de 2026 el plan pasó de
+`Parallel Seq Scan` a `Bitmap Index Scan` (BRIN) + `Bitmap Heap Scan`, con
+`Heap Blocks: lossy=356` y **343 filas descartadas por reverificación**. Este
+comportamiento es normal: BRIN localiza rangos de páginas aproximados y PostgreSQL
+comprueba después la condición en las filas candidatas.
+
+Consulta 4:
+
+```sql
+SELECT DATE_TRUNC('month', fecha)::DATE AS mes,
+       COUNT(*) AS cant_ventas, SUM(total) AS facturacion
+FROM comprobante
+WHERE fecha BETWEEN DATE '2026-08-01' AND DATE '2026-10-31'
+GROUP BY 1 ORDER BY 1;
+```
+
+### 4.3. Comparativa medida: consultas 3 y 4
+
+Se utilizó `EXPLAIN (ANALYZE, BUFFERS)` antes de crear estos **dos** índices y
+después de crearlos y ejecutar `VACUUM (ANALYZE)` sobre las tablas involucradas.
+Los resultados corresponden a una base local de H3 con **600.000 renglones de venta**
+y **150.000 comprobantes**. Las consultas 1 y 2 corresponden al aporte de Delgado.
+
+| Consulta | Antes (ms) | Después (ms) | Acceso antes | Acceso después | Reducción observada | Buffers representativos antes → después |
+|---|---:|---:|---|---|---:|---|
+| 3 — Vino 10 | 23.935 | 5.973 | Parallel Seq Scan | Index Only Scan | 75.0 % | hit=32/read=4808 → hit=1/read=80 |
+| 4 — Ago.–oct. 2026 | 109.491 | 15.155 | Parallel Seq Scan | Bitmap Heap Scan + BRIN | 86.2 % | hit=17/read=6627 → hit=171/read=196 |
+
+En estas ejecuciones, la consulta 3 se aceleró **4.01×** y la consulta 4,
+**7.22×**. Es una comparación observada, **no una garantía de mejora constante**:
+la caché, lecturas de disco, paralelismo y estado de la máquina también influyen.
+
+## 5. Caso de índice existente que el planificador decide no usar — Santiago
+
+Con el índice `idx_comprobante_fecha_brin` **existente**, la consulta:
+
+```sql
+SELECT *
+FROM comprobante
+WHERE fecha >= DATE '2022-01-01';
+```
+
+recuperó **150.000 de 150.000 filas**. PostgreSQL escogió `Seq Scan on comprobante`
+(**31.092 ms**), porque el filtro no descarta filas y recorrer el heap
+secuencialmente resulta más conveniente que acceder mediante un índice.
+No se alteró `enable_seqscan` ni se forzó ningún plan.
+
+## Anexo H4 — Planes completos de consultas 3, 4 y caso de no uso (Santiago)
+
+### Consulta 3 — ANTES (sin INCLUDE)
+
+```text
+QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=1000.00..9001.28 rows=1 width=44) (actual time=21.068..23.523 rows=1 loops=1)
+   Buffers: shared hit=32 read=4808
+   ->  Gather  (cost=1000.00..9001.25 rows=2 width=44) (actual time=20.949..23.501 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=32 read=4808
+         ->  Partial GroupAggregate  (cost=0.00..8001.05 rows=1 width=44) (actual time=16.791..16.791 rows=1 loops=3)
+               Buffers: shared hit=32 read=4808
+               ->  Parallel Seq Scan on renglon_comprobante  (cost=0.00..7965.00 rows=7208 width=16) (actual time=0.033..15.598 rows=5562 loops=3)
+                     Filter: (cod_vino = 10)
+                     Rows Removed by Filter: 194438
+                     Buffers: shared hit=32 read=4808
+ Planning:
+   Buffers: shared hit=95 read=5
+ Planning Time: 2.115 ms
+ Execution Time: 23.935 ms
+(16 rows)
+```
+
+### Consulta 3 — DESPUÉS (con INCLUDE)
+
+```text
+QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=0.42..680.13 rows=1 width=44) (actual time=5.866..5.868 rows=1 loops=1)
+   Buffers: shared hit=1 read=80
+   ->  Index Only Scan using idx_rc_vino_include_cant on renglon_comprobante  (cost=0.42..597.52 rows=16520 width=16) (actual time=0.144..3.190 rows=16686 loops=1)
+         Index Cond: (cod_vino = 10)
+         Heap Fetches: 5
+         Buffers: shared hit=1 read=80
+ Planning:
+   Buffers: shared hit=118
+ Planning Time: 1.205 ms
+ Execution Time: 5.973 ms
+(10 rows)
+```
+
+### Consulta 4 — ANTES (sin BRIN)
+
+```text
+QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=8616.95..8632.81 rows=58 width=44) (actual time=105.325..109.262 rows=3 loops=1)
+   Group Key: ((date_trunc('month'::text, (fecha)::timestamp with time zone))::date)
+   Buffers: shared hit=17 read=6627
+   ->  Gather Merge  (cost=8616.95..8630.49 rows=116 width=44) (actual time=105.309..109.240 rows=9 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=17 read=6627
+         ->  Sort  (cost=7616.93..7617.07 rows=58 width=44) (actual time=100.634..100.636 rows=3 loops=3)
+               Sort Key: ((date_trunc('month'::text, (fecha)::timestamp with time zone))::date)
+               Sort Method: quicksort  Memory: 25kB
+               Buffers: shared hit=17 read=6627
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Partial HashAggregate  (cost=7614.07..7615.23 rows=58 width=44) (actual time=100.593..100.595 rows=3 loops=3)
+                     Group Key: (date_trunc('month'::text, (fecha)::timestamp with time zone))::date
+                     Batches: 1  Memory Usage: 24kB
+                     Buffers: shared hit=1 read=6627
+                     Worker 0:  Batches: 1  Memory Usage: 24kB
+                     Worker 1:  Batches: 1  Memory Usage: 24kB
+                     ->  Parallel Seq Scan on comprobante  (cost=0.00..7589.78 rows=3238 width=12) (actual time=94.485..99.799 rows=2586 loops=3)
+                           Filter: ((fecha >= '2026-08-01'::date) AND (fecha <= '2026-10-31'::date))
+                           Rows Removed by Filter: 47414
+                           Buffers: shared hit=1 read=6627
+ Planning:
+   Buffers: shared hit=98 read=3
+ Planning Time: 1.085 ms
+ Execution Time: 109.491 ms
+(27 rows)
+```
+
+### Consulta 4 — DESPUÉS (con BRIN)
+
+```text
+QUERY PLAN
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=7245.54..7245.68 rows=58 width=44) (actual time=14.959..14.961 rows=3 loops=1)
+   Sort Key: ((date_trunc('month'::text, (fecha)::timestamp with time zone))::date)
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=171 read=196
+   ->  HashAggregate  (cost=7242.68..7243.84 rows=58 width=44) (actual time=14.906..14.909 rows=3 loops=1)
+         Group Key: (date_trunc('month'::text, (fecha)::timestamp with time zone))::date
+         Batches: 1  Memory Usage: 24kB
+         Buffers: shared hit=168 read=196
+         ->  Bitmap Heap Scan on comprobante  (cost=14.03..7184.55 rows=7750 width=12) (actual time=0.862..12.840 rows=7758 loops=1)
+               Recheck Cond: ((fecha >= '2026-08-01'::date) AND (fecha <= '2026-10-31'::date))
+               Rows Removed by Index Recheck: 343
+               Heap Blocks: lossy=356
+               Buffers: shared hit=168 read=196
+               ->  Bitmap Index Scan on idx_comprobante_fecha_brin  (cost=0.00..12.10 rows=8654 width=0) (actual time=0.143..0.144 rows=3560 loops=1)
+                     Index Cond: ((fecha >= '2026-08-01'::date) AND (fecha <= '2026-10-31'::date))
+                     Buffers: shared hit=8
+ Planning:
+   Buffers: shared hit=125
+ Planning Time: 1.335 ms
+ Execution Time: 15.155 ms
+(20 rows)
+```
+
+### Caso de índice existente ignorado
+
+```text
+QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------
+ Seq Scan on comprobante  (cost=0.00..8503.00 rows=150000 width=40) (actual time=0.268..24.201 rows=150000 loops=1)
+   Filter: (fecha >= '2022-01-01'::date)
+   Buffers: shared hit=6117 read=511
+ Planning:
+   Buffers: shared hit=91 dirtied=4
+ Planning Time: 1.043 ms
+ Execution Time: 31.092 ms
+(7 rows)
+```
+
+<!-- FIN APORTE H4 SANTIAGO -->

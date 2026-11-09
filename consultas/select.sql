@@ -7,7 +7,129 @@
 -- BLOQUE 1: CONSULTAS BÁSICAS S1 A S6 (Responsable: Bruno)
 -- =============================================================================
 
--- (Espacio reservado para las consultas S1 a S6 de Bruno)
+-- === S1 ===
+-- Enunciado: Ranking de los 10 vinos con mayor cantidad de botellas vendidas en
+--            toda la red de salas.
+-- Estrategia: JOIN entre vino y renglon_comprobante, agrupando por código y
+--             nombre de vino, sumando las cantidades vendidas y ordenando en
+--             forma descendente con LIMIT 10. El desempate por cod_vino garantiza
+--             un resultado estable si dos vinos tienen el mismo total.
+SELECT
+    v.cod_vino,
+    v.nombre,
+    SUM(rc.cantidad) AS total_botellas
+FROM vino v
+JOIN renglon_comprobante rc
+    ON rc.cod_vino = v.cod_vino
+GROUP BY v.cod_vino, v.nombre
+ORDER BY total_botellas DESC, v.cod_vino
+LIMIT 10;
+
+-- === S2 ===
+-- Enunciado: Listar códigos y nombres de los vinos que se vendieron en TODAS
+--            las salas (división relacional).
+-- Estrategia: División relacional por cardinalidad. Se cruzan vino, renglon_comprobante
+--             y comprobante para obtener las salas distintas donde se vendió cada
+--             vino; el HAVING exige que esa cantidad sea igual al total de salas
+--             registradas en sala_venta. Equivale a la formulación clásica con doble
+--             NOT EXISTS, pero resuelta con agregación y una subconsulta escalar.
+SELECT
+    v.cod_vino,
+    v.nombre
+FROM vino v
+JOIN renglon_comprobante rc
+    ON rc.cod_vino = v.cod_vino
+JOIN comprobante co
+    ON co.nro_comprobante = rc.nro_comprobante
+GROUP BY v.cod_vino, v.nombre
+HAVING COUNT(DISTINCT co.id_sala) = (SELECT COUNT(*) FROM sala_venta)
+ORDER BY v.cod_vino;
+
+-- === S3 ===
+-- Enunciado: Cantidad de clientes de cada tipo que compraron en una sala
+--            determinada en la última semana.
+-- Parámetro: id_sala = 1 (sala de Tupungato).
+-- Estrategia: JOIN entre comprobante y cliente, filtro temporal dinámico con
+--             CURRENT_DATE - INTERVAL '7 days' y agrupación por tipo_cliente.
+--             COUNT(DISTINCT c.id_cliente) evita contar dos veces al mismo cliente
+--             si emitió más de un comprobante en el período.
+SELECT
+    c.tipo_cliente,
+    COUNT(DISTINCT c.id_cliente) AS cantidad_clientes
+FROM comprobante co
+JOIN cliente c
+    ON c.id_cliente = co.id_cliente
+WHERE co.id_sala = 1
+  AND co.fecha >= CURRENT_DATE - INTERVAL '7 days'
+GROUP BY c.tipo_cliente
+ORDER BY c.tipo_cliente;
+
+-- === S4 ===
+-- Enunciado: Top 5 de las salas que solicitaron mayor cantidad de un vino
+--            determinado mediante transferencias en los últimos 15 días.
+-- Parámetro: cod_vino = 1 (primer vino del catálogo cargado).
+-- Estrategia: JOIN entre transferencia, renglon_transferencia y sala_venta,
+--             filtro temporal dinámico con CURRENT_DATE - INTERVAL '15 days',
+--             suma de rt.cantidad y ordenamiento descendente con LIMIT 5.
+SELECT
+    s.id_sala,
+    s.calle,
+    s.numero,
+    SUM(rt.cantidad) AS botellas_transferidas
+FROM transferencia t
+JOIN renglon_transferencia rt
+    ON rt.nro_transferencia = t.nro_transferencia
+JOIN sala_venta s
+    ON s.id_sala = t.id_sala
+WHERE rt.cod_vino = 1
+  AND t.fecha_confeccion >= CURRENT_DATE - INTERVAL '15 days'
+GROUP BY s.id_sala, s.calle, s.numero
+ORDER BY botellas_transferidas DESC, s.id_sala
+LIMIT 5;
+
+-- === S5 ===
+-- Enunciado: Listado de las salas con menor cantidad de transferencias
+--            pendientes (no procesadas).
+-- Estrategia: LEFT JOIN desde sala_venta hacia transferencia aplicando en la
+--             condición del JOIN el filtro estado <> 'procesado'. Así se conservan
+--             las salas sin pendientes, que aparecen con 0 mediante COALESCE.
+--             Se ordena en forma ascendente para mostrar primero las salas con
+--             menor carga pendiente. La vista vw_documentos_pendientes también
+--             expone estas transferencias, pero aquí se resume por sala.
+SELECT
+    s.id_sala,
+    s.calle,
+    s.numero,
+    COALESCE(COUNT(t.nro_transferencia), 0) AS transferencias_pendientes
+FROM sala_venta s
+LEFT JOIN transferencia t
+    ON t.id_sala = s.id_sala
+   AND t.estado <> 'procesado'
+GROUP BY s.id_sala, s.calle, s.numero
+ORDER BY transferencias_pendientes ASC, s.id_sala;
+
+-- === S6 ===
+-- Enunciado: Para una sala determinada, listar los vinos sin stock en la sala
+--            pero con stock en el depósito central.
+-- Parámetro: id_sala = 1 (sala de Tupungato).
+-- Estrategia: Se parte de stock_deposito cruzado con vino para considerar solo
+--             vinos con existencias en el depósito central. Luego LEFT JOIN con
+--             stock_sala restringido a id_sala = 1; el COALESCE(ss.cantidad, 0) = 0
+--             cubre tanto los vinos sin fila de stock en la sala como los que
+--             tienen cantidad cero.
+SELECT
+    v.cod_vino,
+    v.nombre,
+    sd.cantidad AS stock_deposito
+FROM stock_deposito sd
+JOIN vino v
+    ON v.cod_vino = sd.cod_vino
+LEFT JOIN stock_sala ss
+    ON ss.cod_vino = sd.cod_vino
+   AND ss.id_sala = 1
+WHERE COALESCE(ss.cantidad, 0) = 0
+  AND sd.cantidad > 0
+ORDER BY v.cod_vino;
 
 
 -- =============================================================================

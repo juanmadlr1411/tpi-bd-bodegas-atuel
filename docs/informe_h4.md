@@ -59,7 +59,7 @@ CREATE INDEX idx_vino_tipo ON vino (tipo);
 Los índices aceleran las lecturas, pero **no son gratuitos**: cada `INSERT`, `UPDATE` y `DELETE` debe mantener actualizadas las estructuras auxiliares. Para cuantificar ese costo se agregó el script reproducible `db/seed/medir_costo_escritura_h4.py`, que inserta **exactamente el mismo lote determinista** (semilla `2026`) en dos escenarios:
 
 * **Escenario A (solo `PRIMARY KEY`):** se eliminan dentro de la transacción todos los índices definidos en `008_indices.sql`.
-* **Escenario B (`PRIMARY KEY` + índices de `008_indices.sql`):** se crean dentro de la transacción los cinco índices del archivo (B-Tree sobre FK, B-Tree compuesto y B-Tree parcial).
+* **Escenario B (`PRIMARY KEY` + índices iniciales de `008_indices.sql`):** se crean dentro de la transacción los cinco índices B-Tree de los bloques 1 y 2 (B-Tree sobre FK, B-Tree compuesto y B-Tree parcial; medidos previo a la adición de los índices del Bloque 3).
 
 La base local de la medición no tenía otros índices secundarios sobre `comprobante` ni `renglon_comprobante`, por lo que el escenario A quedó efectivamente con **solo las claves primarias**. Si existieran índices ajenos a `008_indices.sql`, el script los detecta y advierte que permanecen activos en ambos escenarios.
 
@@ -86,7 +86,7 @@ Medición local sobre PostgreSQL 16.15 (contenedor Docker), con los datos maestr
 | `INSERT` de 50.000 renglones (control) | 15,6054 s | 15,5745 s | -0,20 % (ruido) |
 | **Total del lote (100.000 filas)** | **28,5805 s** | **29,2565 s** | **+2,37 %** |
 
-La fila de `renglon_comprobante` funciona como **control**: esa tabla no recibe ningún índice nuevo en `008_indices.sql`, por lo que su tiempo debe permanecer estable. La diferencia observada (-0,20 %) está dentro del ruido de la máquina y confirma que la sobrecarga proviene de los dos índices nuevos sobre `comprobante`, no del método de inserción.
+La fila de `renglon_comprobante` funciona como **control**: en este benchmark inicial esa tabla no tenía índice secundario activo (su índice `INCLUDE` fue incorporado con posterioridad en el Bloque 3), por lo que su tiempo debe permanecer estable. La diferencia observada (-0,20 %) está dentro del ruido de la máquina y confirma que la sobrecarga proviene de los dos índices nuevos sobre `comprobante`, no del método de inserción.
 
 ### 3.3 Resultados de almacenamiento en disco
 
@@ -114,7 +114,7 @@ Cada fila nueva debe generar una entrada en **todos** los índices cuyas columna
 * **B-Tree:** el motor desciende desde la raíz comparando la clave hasta ubicar la **página hoja** correspondiente y inserta el par `(clave, TID)` en orden. Si la hoja está llena, se produce un **page split**: se asigna una página nueva, se mueven aproximadamente la mitad de las entradas y se propaga una clave separadora al nivel superior; el split puede ascender hasta la raíz. Por eso el costo por fila es `O(log n)` por índice, pero con escrituras aleatorias y posibles divisiones de página. En el lote medido, `comprobante` recibe 50.000 entradas nuevas en la PK, 50.000 en `idx_fk_comprobante_cliente` y 50.000 en `idx_comprobante_sala_fecha`; `renglon_comprobante` recibe 50.000 en su PK.
 * **Índice compuesto:** `idx_comprobante_sala_fecha` almacena `(id_sala, fecha)` en cada hoja. La entrada es más ancha que la de un índice de una sola columna, por eso ocupa más (0,74 MB frente a 0,53 MB) y su mantenimiento es algo más costoso. A cambio, sirve tanto para filtros por `(id_sala, fecha)` como por el prefijo `id_sala`, evitando un índice separado sobre `id_sala`.
 * **Índice parcial:** `idx_transferencia_pendientes` solo indexa las filas que cumplen `estado <> 'procesado'`. Un `INSERT` de una transferencia ya procesada **no crea entrada** en este índice; por eso su costo de escritura y su tamaño son mínimos. En la medición no se insertaron transferencias, de ahí su tamaño de 0,01 MB.
-* **BRIN (no usado en 008):** un BRIN no guarda una entrada por fila, sino **resúmenes de rangos de bloques** (mínimo/máximo). Un `INSERT` solo actualiza el resumen del rango donde cae la fila, y únicamente si el valor amplía el mínimo o el máximo. Es mucho más barato y pequeño que un B-Tree, pero solo resulta útil cuando la tabla está físicamente ordenada por la columna indexada y las consultas filtran por rangos. Para joins por FK, búsquedas puntuales y datos desordenados como los de este esquema, el B-Tree es la estructura adecuada; por eso `008_indices.sql` no crea BRIN.
+* **BRIN:** un BRIN no guarda una entrada por fila, sino **resúmenes de rangos de bloques** (mínimo/máximo). Un `INSERT` solo actualiza el resumen del rango donde cae la fila, y únicamente si el valor amplía el mínimo o el máximo. Es mucho más barato y pequeño que un B-Tree, pero solo resulta útil cuando la tabla está físicamente ordenada por la columna indexada y las consultas filtran por rangos. Para joins por FK y búsquedas puntuales, el B-Tree es la estructura adecuada; en el Bloque 3 se incorpora un índice BRIN sobre `comprobante(fecha)` aprovechando precisamente el orden físico de las inserciones cronológicas.
 
 #### `UPDATE`
 
@@ -165,7 +165,7 @@ Para verificar empíricamente el impacto de los índices propuestos en `008_indi
 #### Consulta 2: Transferencias Pendientes
 *(Transferencias en estado distinto a 'procesado').*
 *   **Antes:** El motor realizó un escaneo secuencial sobre toda la tabla `transferencia`, leyendo 82 buffers y descartando 5.000 filas históricas.
-*   **Después:** Al aplicar el índice parcial `idx_transferencia_pendientes (estado) WHERE estado <> 'procesado'`, el motor ejecutó un escaneo por mapa de bits leyendo solo 2 bloques en la tabla principal, saltando directamente a las 4 transferencias pendientes en 0.25 ms.
+*   **Después:** Al aplicar el índice parcial `idx_transferencia_pendientes (id_sala, fecha_confeccion) WHERE estado <> 'procesado'`, el motor ejecutó un escaneo por mapa de bits leyendo solo 2 bloques en la tabla principal, saltando directamente a las 4 transferencias pendientes en 0.25 ms.
 
 ---
 
@@ -273,6 +273,11 @@ Sort  (cost=69.41..69.42 rows=4 width=24) (actual time=0.151..0.154 rows=4 loops
                            Buffers: shared hit=12
  Planning Time: 2.104 ms
  Execution Time: 0.254 ms
+```
+</details>
+
+---
+
 <!-- INICIO APORTE H4 SANTIAGO -->
 
 ## 5. Índices especiales INCLUDE y BRIN — Responsable: Santiago
@@ -358,6 +363,9 @@ secuencialmente resulta más conveniente que acceder mediante un índice.
 No se alteró `enable_seqscan` ni se forzó ningún plan.
 
 ## Anexo H4 — Planes completos de consultas 3, 4 y caso de no uso (Santiago)
+
+<details>
+<summary><b>Ver planes de ejecución completos (Consultas 3, 4 y caso no uso)</b></summary>
 
 ### Consulta 3 — ANTES (sin INCLUDE)
 
@@ -478,5 +486,7 @@ QUERY PLAN
  Execution Time: 31.092 ms
 (7 rows)
 ```
+
+</details>
 
 <!-- FIN APORTE H4 SANTIAGO -->

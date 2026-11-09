@@ -5,7 +5,7 @@ import psycopg
 
 from api.database import init_pool, close_pool
 from api.exceptions import postgres_exception_handler
-from api.routers import salud
+from api.routers import salud, vinos, clientes
 
 
 @asynccontextmanager
@@ -44,6 +44,8 @@ app.add_exception_handler(psycopg.Error, postgres_exception_handler)
 
 # Inclusión de routers
 app.include_router(salud.router)
+app.include_router(vinos.router)
+app.include_router(clientes.router)
 
 
 @app.get("/", include_in_schema=False)
@@ -54,3 +56,4 @@ def root():
         "documentacion": "/docs",
         "salud": "/salud",
     }
+

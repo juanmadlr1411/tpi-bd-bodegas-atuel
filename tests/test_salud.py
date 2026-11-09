@@ -18,3 +18,4 @@ def test_endpoint_salud(client):
     assert data["db"] == "connected"
     assert data["usuario"] == "operador_atuel"
     assert data["database"] == "bodegas_atuel"
+

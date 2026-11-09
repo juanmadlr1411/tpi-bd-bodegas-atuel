@@ -62,3 +62,4 @@ def get_db_cursor() -> Generator[psycopg.Cursor, None, None]:
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             yield cur
+

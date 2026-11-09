@@ -32,3 +32,4 @@ def verificar_salud():
                 "detail": str(e),
             },
         )
+

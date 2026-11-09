@@ -280,11 +280,11 @@ ORDER BY id_sala, mes;
 -- Herramientas: División relacional estricta (Doble NOT EXISTS) y Anti-Join (NOT EXISTS simple).
 -- Justificación: Cumple el estándar de división relacional buscando "clientes para los cuales NO EXISTE un vino de la bodega que NO HAYAN comprado".
 /*
-EXPLAIN (ANALYZE, BUFFERS) PLAN OBTENIDO (S12-A):
-Nested Loop Anti Join  (cost=0.00..380586.79 rows=500 width=22) (actual time=251.270..836.355 rows=1000 loops=1)
-   Buffers: shared hit=1044088
-Planning Time: 1.665 ms
-Execution Time: 1413.117 ms
+EXPLAIN (ANALYZE, BUFFERS) PLAN OBTENIDO (S12-A - CUIT 20635307455, 6 vinos):
+Result  (cost=0.25..343020.47 rows=579 width=22) (actual time=30.366..414.203 rows=855 loops=1)
+   Buffers: shared hit=442545
+Planning Time: 2.310 ms
+Execution Time: 569.448 ms
 
 EXPLAIN (ANALYZE, BUFFERS) PLAN OBTENIDO (S12-B):
 Nested Loop Anti Join  (cost=2.33..1575.42 rows=1 width=22) (actual time=4.006..4.008 rows=0 loops=1)
@@ -292,18 +292,31 @@ Nested Loop Anti Join  (cost=2.33..1575.42 rows=1 width=22) (actual time=4.006..
 Planning Time: 1.534 ms
 Execution Time: 4.111 ms
 */
--- S12-A: Compraron TODOS los vinos de la bodega 20624731781 (Bodega Ferreyra PLC)
+-- S12-A: Clientes que compraron TODOS los vinos de la bodega '20635307455' (Bodega Torres, Perez and Gonzalez - 6 vinos)
+-- Se incluye la guarda EXISTS previa para asegurar que la bodega posea vinos y evitar que un CUIT inexistente devuelva todos los clientes.
 SELECT c.id_cliente, c.nombre_razon_social
 FROM cliente c
-WHERE NOT EXISTS (
+WHERE EXISTS (
+    SELECT 1 FROM vino v WHERE v.cuit_bodega = '20635307455'
+)
+AND NOT EXISTS (
     SELECT 1 FROM vino v
-    WHERE v.cuit_bodega = '20624731781'
+    WHERE v.cuit_bodega = '20635307455'
     AND NOT EXISTS (
         SELECT 1 FROM comprobante comp
         JOIN renglon_comprobante rc ON comp.nro_comprobante = rc.nro_comprobante
         WHERE comp.id_cliente = c.id_cliente AND rc.cod_vino = v.cod_vino
     )
 );
+
+-- S12-A (Consulta alternativa de contraste con COUNT DISTINCT - retorna exactamente los mismos 855 clientes):
+-- SELECT c.id_cliente, c.nombre_razon_social
+-- FROM cliente c
+-- JOIN comprobante comp ON comp.id_cliente = c.id_cliente
+-- JOIN renglon_comprobante rc ON rc.nro_comprobante = comp.nro_comprobante
+-- JOIN vino v ON v.cod_vino = rc.cod_vino AND v.cuit_bodega = '20635307455'
+-- GROUP BY c.id_cliente, c.nombre_razon_social
+-- HAVING COUNT(DISTINCT v.cod_vino) = (SELECT COUNT(*) FROM vino WHERE cuit_bodega = '20635307455');
 
 -- S12-B: NUNCA compraron vino tinto
 SELECT c.id_cliente, c.nombre_razon_social

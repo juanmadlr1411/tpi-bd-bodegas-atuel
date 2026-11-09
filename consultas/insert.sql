@@ -94,10 +94,16 @@ BEGIN
         RAISE NOTICE 'Comprobante creado con Nro: %', v_nro_comprobante;
 
         -- Insertar 3 renglones (buscando vinos que sí tengan stock en la sala 1)
-        INSERT INTO renglon_comprobante (nro_comprobante, cod_vino, cantidad)
-        SELECT v_nro_comprobante, cod_vino, 1
-        FROM stock_sala
-        WHERE id_sala = 1 AND stock >= 1
+        INSERT INTO renglon_comprobante (nro_comprobante, cod_vino, cantidad, precio_unitario, descuento)
+        SELECT
+            v_nro_comprobante,
+            ss.cod_vino,
+            1,
+            v.precio,
+            fn_descuento_cliente(v_id_cliente)
+        FROM stock_sala ss
+        JOIN vino v ON v.cod_vino = ss.cod_vino
+        WHERE ss.id_sala = 1 AND ss.cantidad >= 1
         LIMIT 3;
 
         GET DIAGNOSTICS v_renglones = ROW_COUNT;

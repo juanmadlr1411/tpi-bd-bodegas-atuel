@@ -20,24 +20,22 @@
 --     que corresponde al tipo de cliente.
 -- =============================================================================
 -- ESTRATEGIA:
---   La consigna exige textualmente recalcular el total de TODOS los comprobantes
---   en base al descuento correspondiente a la categoría del cliente (RN-06:
---   socio 10%, distribuidor 20%, exportador 30%).
---   Para cumplir directamente con la consigna y evidenciar la afectación de toda
---   la red en una única sentencia eficiente (~1.4 s para 150.000 comprobantes),
---   se actualizan 'descuento' y 'total' en la tabla 'comprobante' utilizando la
---   función normativa 'fn_descuento_por_tipo(c.tipo_cliente)'.
---
--- NOTA ARQUITECTURAL SOBRE RN-08 (Para la defensa oral):
---   En la operación transaccional diaria, las ventas se originan renglón por renglón
---   y el trigger 'trg_actualizar_totales_comprobante' calcula los totales a partir
---   del subtotal de cada línea. Esta sentencia U1 representa el recálculo masivo
---   global directo solicitado por la cátedra para auditar o normalizar cabeceras.
+--   Por regla RN-08 y RN-06, el total del comprobante es la suma del importe neto
+--   de cada renglón redondeado a dos decimales con el descuento por tipo de cliente
+--   aplicado (socio 10%, distribuidor 20%, exportador 30% vía 'fn_descuento_por_tipo').
+--   Si se calculara el descuento sobre el subtotal acumulado de cabecera, se generarían
+--   diferencias de redondeo de hasta $0,02 en 54.062 comprobantes respecto a la suma
+--   de renglones ('fn_total_comprobante').
+--   Por ello, se utiliza una CTE que agrega a nivel de renglón calculando:
+--     - subtotal_bruto: SUM(cantidad * precio_unitario)
+--     - total_neto:     SUM(ROUND(cantidad * precio_unitario * (1 - pct/100.0), 2))
+--   Y actualiza en una única sentencia los 150.000 comprobantes, garantizando cero
+--   inconsistencias tanto matemáticas como frente a 'fn_total_comprobante'.
 -- =============================================================================
 
 BEGIN;
 
--- 1. Control previo: muestra representativa de comprobantes con sus importes y cliente
+-- 1. Control previo: muestra representativa de comprobantes con sus importes actuales y tipo de cliente
 SELECT
     co.nro_comprobante,
     co.id_cliente,
@@ -51,12 +49,23 @@ JOIN cliente c ON c.id_cliente = co.id_cliente
 ORDER BY co.nro_comprobante
 LIMIT 5;
 
--- 2. Sentencia canónica UPDATE (recalcula los 150.000 comprobantes según el tipo de cliente)
+-- 2. Sentencia canónica UPDATE (recalcula los 150.000 comprobantes respetando RN-08 y RN-06)
+WITH totales_calculados AS (
+    SELECT
+        r.nro_comprobante,
+        SUM(r.cantidad * r.precio_unitario)::NUMERIC(14,2) AS subtotal_bruto,
+        SUM(ROUND(r.cantidad * r.precio_unitario * (1 - fn_descuento_por_tipo(c.tipo_cliente) / 100.0), 2))::NUMERIC(14,2) AS total_neto
+    FROM renglon_comprobante r
+    JOIN comprobante co ON co.nro_comprobante = r.nro_comprobante
+    JOIN cliente c ON c.id_cliente = co.id_cliente
+    GROUP BY r.nro_comprobante
+)
 UPDATE comprobante co
-SET descuento = ROUND(co.subtotal * (fn_descuento_por_tipo(c.tipo_cliente) / 100.0), 2),
-    total     = co.subtotal - ROUND(co.subtotal * (fn_descuento_por_tipo(c.tipo_cliente) / 100.0), 2)
-FROM cliente c
-WHERE c.id_cliente = co.id_cliente;
+SET subtotal  = tc.subtotal_bruto,
+    descuento = tc.subtotal_bruto - tc.total_neto,
+    total     = tc.total_neto
+FROM totales_calculados tc
+WHERE tc.nro_comprobante = co.nro_comprobante;
 
 -- 3. Control posterior: verificación de los mismos comprobantes con importes recalculados
 SELECT
@@ -72,12 +81,13 @@ JOIN cliente c ON c.id_cliente = co.id_cliente
 ORDER BY co.nro_comprobante
 LIMIT 5;
 
--- 4. Control de consistencia global: verificar que no existan discrepancias entre total y subtotal - descuento
-SELECT COUNT(*) AS comprobantes_con_inconsistencia_matematica
-FROM comprobante
-WHERE total <> subtotal - descuento;
+-- 4. Control de consistencia global: verificar 0 discrepancias con fn_total_comprobante y total = subtotal - descuento
+SELECT
+    COUNT(*) FILTER (WHERE total <> subtotal - descuento) AS inconsistencias_matematicas,
+    COUNT(*) FILTER (WHERE total <> fn_total_comprobante(nro_comprobante)) AS inconsistencias_con_fn_total
+FROM comprobante;
 
--- FILAS AFECTADAS: 150.000 comprobantes recalculados de forma atómica.
+-- FILAS AFECTADAS: 150.000 comprobantes recalculados de forma atómica y consistente.
 
 ROLLBACK;
 

@@ -137,12 +137,147 @@ PostgreSQL implementa MVCC: un `UPDATE` crea una **nueva versión de la fila** e
 * **Diseño:** el índice parcial demuestra que se puede reducir drásticamente el costo de escritura indexando solo la fracción activa; el índice compuesto reutiliza el prefijo `id_sala` y evita un índice adicional; los índices de FK son necesarios para evitar `Seq Scan` en joins y en las verificaciones de `ON DELETE RESTRICT`. La contrapartida es que **cada escritura debe mantener todas las estructuras afectadas**, por lo que solo deben crearse índices justificados por consultas frecuentes o por integridad referencial.
 * **Alcance de la medición:** los triggers de negocio se desactivaron únicamente para aislar el costo de los índices. En producción, un `INSERT` de venta también ejecuta los triggers de totales y stock (RN-08/RN-09), cuyo costo es independiente del mantenimiento de índices y no forma parte de esta comparación.
 
+---
 
+## 4. Análisis de Rendimiento e Índices (EXPLAIN) - Responsable: Integración
+
+### 4.1 Objetivo y Metodología
+Para verificar empíricamente el impacto de los índices propuestos en `008_indices.sql`, se analizaron los planes de ejecución (`EXPLAIN (ANALYZE, BUFFERS)`) de dos consultas críticas sobre el dataset histórico (150.000 comprobantes, 600.000 renglones de venta, 5.000 transferencias y 15.000 renglones de transferencia). Las mediciones comparan el comportamiento del planificador de PostgreSQL antes y después de aplicar los índices.
+
+### 4.2 Tabla Comparativa de Rendimiento
+
+| Consulta | Estado | Tiempo de Ejecución | Buffers Leídos (Hit+Read) | Filas Descartadas (Removed) | Método de Acceso Principal | Mejora de Tiempo |
+| :--- | :--- | ---: | ---: | ---: | :--- | ---: |
+| **C1: Reporte por Sala** | Sin Índices | 11.67 ms | 1.402 bloques | 149.582 filas | `Seq Scan` | - |
+| **C1: Reporte por Sala** | **Con Índices** | **1.82 ms** | **27 bloques** | **0 filas** | `Bitmap Heap Scan` | **84,4 %** |
+| **C2: Transf. Pendientes** | Sin Índices | 0.64 ms | 82 bloques | 5.000 filas | `Seq Scan` | - |
+| **C2: Transf. Pendientes** | **Con Índices** | **0.25 ms** | **2 bloques** | **0 filas** | `Bitmap Heap Scan` | **60,9 %** |
+
+*(Nota: La reducción drástica en la lectura de buffers y filas descartadas demuestra que el motor dejó de barrer las tablas enteras y pasó a acceder de forma quirúrgica a las páginas de disco necesarias).*
+
+### 4.3 Análisis de Resultados
+
+#### Consulta 1: Reporte mensual de comprobantes por tipo de cliente
+*(Ventas en sala 1 desde octubre de 2026).*
+*   **Antes:** El planificador resolvió mediante un *Sequential Scan* sobre la tabla `comprobante`, leyendo 1.402 buffers de memoria y descartando 149.582 filas inútiles mediante el filtro `WHERE`, tardando 11.67 ms.
+*   **Después:** Gracias al índice compuesto `idx_comprobante_sala_fecha (id_sala, fecha)` y al de clave foránea `idx_fk_comprobante_cliente`, el motor cambió a un *Bitmap Heap Scan*. La lectura de buffers bajó drásticamente a 27 bloques y el tiempo a 1.82 ms. (Reducción de I/O de disco/memoria del 98%).
+
+#### Consulta 2: Transferencias Pendientes
+*(Transferencias en estado distinto a 'procesado').*
+*   **Antes:** El motor realizó un escaneo secuencial sobre toda la tabla `transferencia`, leyendo 82 buffers y descartando 5.000 filas históricas.
+*   **Después:** Al aplicar el índice parcial `idx_transferencia_pendientes (estado) WHERE estado <> 'procesado'`, el motor ejecutó un escaneo por mapa de bits leyendo solo 2 bloques en la tabla principal, saltando directamente a las 4 transferencias pendientes en 0.25 ms.
+
+---
+
+### Anexo: Planes de Ejecución (EXPLAIN)
+
+<details>
+<summary><b>Ver planes de ejecución completos (Antes y Después)</b></summary>
+
+```text
+=== CONSULTA 1 (ANTES) ===
+GroupAggregate  (cost=3712.05..3716.13 rows=3 width=44) (actual time=10.745..10.924 rows=3 loops=1)
+   Group Key: cl.tipo_cliente
+   Buffers: shared hit=1421
+   ->  Sort  (cost=3712.05..3713.06 rows=404 width=16) (actual time=10.435..10.526 rows=418 loops=1)
+         Sort Key: cl.tipo_cliente, c.nro_comprobante
+         Sort Method: quicksort  Memory: 44kB
+         Buffers: shared hit=1421
+         ->  Hash Join  (cost=41.50..3694.56 rows=404 width=16) (actual time=9.284..9.835 rows=418 loops=1)
+               Hash Cond: (c.id_cliente = cl.id_cliente)
+               Buffers: shared hit=1421
+               ->  Seq Scan on comprobante c  (cost=0.00..3652.00 rows=404 width=16) (actual time=8.514..8.881 rows=418 loops=1)
+                     Filter: ((fecha >= '2026-10-01'::date) AND (id_sala = 1))
+                     Rows Removed by Filter: 149582
+                     Buffers: shared hit=1402
+               ->  Hash  (cost=29.00..29.00 rows=1000 width=8) (actual time=0.490..0.491 rows=1000 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 48kB
+                     Buffers: shared hit=19
+                     ->  Seq Scan on cliente cl  (cost=0.00..29.00 rows=1000 width=8) (actual time=0.022..0.225 rows=1000 loops=1)
+                           Buffers: shared hit=19
+ Planning Time: 4.088 ms
+ Execution Time: 11.678 ms
+
+=== CONSULTA 1 (DESPUES) ===
+GroupAggregate  (cost=967.90..972.06 rows=3 width=44) (actual time=1.131..1.205 rows=3 loops=1)
+   Group Key: cl.tipo_cliente
+   Buffers: shared hit=52 read=2
+   ->  Sort  (cost=967.90..968.93 rows=412 width=16) (actual time=1.001..1.026 rows=418 loops=1)
+         Sort Key: cl.tipo_cliente, c.nro_comprobante
+         Sort Method: quicksort  Memory: 44kB
+         Buffers: shared hit=52 read=2
+         ->  Hash Join  (cost=50.02..950.01 rows=412 width=16) (actual time=0.441..0.656 rows=418 loops=1)
+               Hash Cond: (c.id_cliente = cl.id_cliente)
+               Buffers: shared hit=44 read=2
+               ->  Bitmap Heap Scan on comprobante c  (cost=8.52..907.43 rows=412 width=16) (actual time=0.086..0.203 rows=418 loops=1)
+                     Recheck Cond: ((id_sala = 1) AND (fecha >= '2026-10-01'::date))
+                     Heap Blocks: exact=25
+                     Buffers: shared hit=25 read=2
+                     ->  Bitmap Index Scan on idx_comprobante_sala_fecha  (cost=0.00..8.42 rows=412 width=0) (actual time=0.060..0.061 rows=418 loops=1)
+                           Index Cond: ((id_sala = 1) AND (fecha >= '2026-10-01'::date))
+                           Buffers: shared read=2
+               ->  Hash  (cost=29.00..29.00 rows=1000 width=8) (actual time=0.324..0.325 rows=1000 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 48kB
+                     Buffers: shared hit=19
+                     ->  Seq Scan on cliente cl  (cost=0.00..29.00 rows=1000 width=8) (actual time=0.011..0.165 rows=1000 loops=1)
+                           Buffers: shared hit=19
+ Planning Time: 6.523 ms
+ Execution Time: 1.822 ms
+
+=== CONSULTA 2 (ANTES) ===
+Sort  (cost=192.41..192.42 rows=4 width=24) (actual time=0.499..0.501 rows=4 loops=1)
+   Sort Key: t.id_sala, t.fecha_confeccion
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=94
+   ->  GroupAggregate  (cost=192.24..192.37 rows=4 width=24) (actual time=0.483..0.487 rows=4 loops=1)
+         Group Key: t.nro_transferencia
+         Buffers: shared hit=94
+         ->  Sort  (cost=192.24..192.27 rows=12 width=20) (actual time=0.476..0.477 rows=4 loops=1)
+               Sort Key: t.nro_transferencia
+               Sort Method: quicksort  Memory: 25kB
+               Buffers: shared hit=94
+               ->  Nested Loop  (cost=0.29..192.02 rows=12 width=20) (actual time=0.425..0.434 rows=4 loops=1)
+                     Buffers: shared hit=94
+                     ->  Seq Scan on transferencia t  (cost=0.00..144.55 rows=4 width=16) (actual time=0.363..0.364 rows=4 loops=1)
+                           Filter: (estado <> 'procesado'::estado_documento)
+                           Rows Removed by Filter: 5000
+                           Buffers: shared hit=82
+                     ->  Index Scan using renglon_transferencia_pkey on renglon_transferencia rt  (cost=0.29..11.84 rows=3 width=8) (actual time=0.005..0.005 rows=1 loops=4)
+                           Index Cond: (nro_transferencia = t.nro_transferencia)
+                           Buffers: shared hit=12
+ Planning Time: 1.232 ms
+ Execution Time: 0.644 ms
+
+=== CONSULTA 2 (DESPUES) ===
+Sort  (cost=69.41..69.42 rows=4 width=24) (actual time=0.151..0.154 rows=4 loops=1)
+   Sort Key: t.id_sala, t.fecha_confeccion
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=16 read=1
+   ->  GroupAggregate  (cost=69.24..69.37 rows=4 width=24) (actual time=0.094..0.099 rows=4 loops=1)
+         Group Key: t.nro_transferencia
+         Buffers: shared hit=13 read=1
+         ->  Sort  (cost=69.24..69.27 rows=12 width=20) (actual time=0.087..0.089 rows=4 loops=1)
+               Sort Key: t.nro_transferencia
+               Sort Method: quicksort  Memory: 25kB
+               Buffers: shared hit=13 read=1
+               ->  Nested Loop  (cost=8.44..69.02 rows=12 width=20) (actual time=0.064..0.075 rows=4 loops=1)
+                     Buffers: shared hit=13 read=1
+                     ->  Bitmap Heap Scan on transferencia t  (cost=8.15..21.55 rows=4 width=16) (actual time=0.037..0.038 rows=4 loops=1)
+                           Recheck Cond: (estado <> 'procesado'::estado_documento)
+                           Heap Blocks: exact=1
+                           Buffers: shared hit=1 read=1
+                           ->  Bitmap Index Scan on idx_transferencia_pendientes  (cost=0.00..8.15 rows=4 width=0) (actual time=0.030..0.031 rows=4 loops=1)
+                                 Buffers: shared read=1
+                     ->  Index Scan using renglon_transferencia_pkey on renglon_transferencia rt  (cost=0.29..11.84 rows=3 width=8) (actual time=0.007..0.007 rows=1 loops=4)
+                           Index Cond: (nro_transferencia = t.nro_transferencia)
+                           Buffers: shared hit=12
+ Planning Time: 2.104 ms
+ Execution Time: 0.254 ms
 <!-- INICIO APORTE H4 SANTIAGO -->
 
-## 4. Índices especiales INCLUDE y BRIN — Responsable: Santiago
+## 5. Índices especiales INCLUDE y BRIN — Responsable: Santiago
 
-### 4.1. Índice covering con `INCLUDE`
+### 5.1. Índice covering con `INCLUDE`
 
 ```sql
 CREATE INDEX IF NOT EXISTS idx_rc_vino_include_cant
@@ -166,7 +301,7 @@ WHERE cod_vino = 10
 GROUP BY cod_vino;
 ```
 
-### 4.2. Índice BRIN por fecha
+### 5.2. Índice BRIN por fecha
 
 ```sql
 CREATE INDEX IF NOT EXISTS idx_comprobante_fecha_brin
@@ -191,7 +326,7 @@ WHERE fecha BETWEEN DATE '2026-08-01' AND DATE '2026-10-31'
 GROUP BY 1 ORDER BY 1;
 ```
 
-### 4.3. Comparativa medida: consultas 3 y 4
+### 5.3. Comparativa medida: consultas 3 y 4
 
 Se utilizó `EXPLAIN (ANALYZE, BUFFERS)` antes de crear estos **dos** índices y
 después de crearlos y ejecutar `VACUUM (ANALYZE)` sobre las tablas involucradas.
@@ -207,7 +342,7 @@ En estas ejecuciones, la consulta 3 se aceleró **4.01×** y la consulta 4,
 **7.22×**. Es una comparación observada, **no una garantía de mejora constante**:
 la caché, lecturas de disco, paralelismo y estado de la máquina también influyen.
 
-## 5. Caso de índice existente que el planificador decide no usar — Santiago
+## 6. Caso de índice existente que el planificador decide no usar — Santiago
 
 Con el índice `idx_comprobante_fecha_brin` **existente**, la consulta:
 

@@ -1,0 +1,701 @@
+:root {
+  --primary: #722f37; /* Borgoña / Vino */
+  --primary-hover: #581822;
+  --primary-light: #fbebee;
+  --secondary: #4a5568;
+  --secondary-hover: #2d3748;
+  --bg-app: #f7fafc;
+  --bg-card: #ffffff;
+  --border: #e2e8f0;
+  --text-main: #1a202c;
+  --text-muted: #718096;
+  --danger: #c53030;
+  --danger-bg: #fff5f5;
+  --danger-border: #feb2b2;
+  --success: #276749;
+  --success-bg: #f0fff4;
+  --success-border: #9ae6b4;
+  --warning-bg: #fffaf0;
+  --warning-border: #fbd38d;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
+/* Navbar */
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #2b1115;
+  color: #fff;
+  padding: 12px 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo {
+  font-size: 28px;
+}
+
+.brand-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.brand-subtitle {
+  font-size: 11px;
+  color: #fed7d7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.navbar-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tab-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: #fed7d7;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.tab-button.active {
+  background-color: var(--primary);
+  color: #fff;
+  border-color: #9b2c2c;
+  font-weight: 600;
+}
+
+.status-indicator {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.status-indicator.connected {
+  background-color: #22543d;
+  color: #9ae6b4;
+}
+
+.status-indicator.checking {
+  background-color: #744210;
+  color: #fbd38d;
+}
+
+.status-indicator.error {
+  background-color: #742a2a;
+  color: #feb2b2;
+}
+
+/* Layout */
+.main-content {
+  max-width: 1200px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+.screen-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.screen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.screen-header h2 {
+  font-size: 24px;
+  color: var(--primary);
+}
+
+.screen-badge {
+  background-color: var(--primary-light);
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #fed7d7;
+}
+
+/* Cards & Forms */
+.filters-card, .form-card, .placeholder-card, .comprobante-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.filters-card {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-field label, .filter-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--secondary);
+}
+
+input, select {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  background-color: #fff;
+  transition: border-color 0.15s;
+}
+
+input:focus, select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(114, 47, 55, 0.15);
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Buttons */
+button {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 8px 16px;
+  transition: all 0.15s;
+  border: none;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: #edf2f7;
+  color: var(--secondary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #e2e8f0;
+}
+
+.btn-danger {
+  background-color: var(--danger);
+  color: #fff;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.btn-close {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  padding: 4px 8px;
+}
+
+.btn-close:hover {
+  color: var(--text-main);
+}
+
+/* Tables */
+.table-wrapper {
+  overflow-x: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+.data-table th {
+  background-color: #f8fafc;
+  padding: 12px 14px;
+  border-bottom: 2px solid var(--border);
+  color: var(--secondary);
+  font-weight: 600;
+}
+
+.data-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table tr:hover td {
+  background-color: #fdfafb;
+}
+
+/* Tags */
+.tag-tipo {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.tag-tipo.tinto { background: #fee2e2; color: #991b1b; }
+.tag-tipo.blanco { background: #fef3c7; color: #92400e; }
+.tag-tipo.rosado { background: #fce7f3; color: #9d174d; }
+.tag-tipo.espumante { background: #e0f2fe; color: #075985; }
+
+/* Error Banner (Crítico para rúbrica) */
+.error-banner {
+  background-color: var(--danger-bg);
+  border: 2px solid var(--danger);
+  border-radius: 8px;
+  padding: 14px 18px;
+  color: #742a2a;
+}
+
+.error-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.error-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.badge-sqlstate {
+  background: #742a2a;
+  color: #fff;
+  font-size: 11px;
+  font-family: monospace;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.badge-status {
+  background: #fed7d7;
+  color: #742a2a;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.error-message {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.error-detail {
+  font-size: 13px;
+  color: #9b2c2c;
+  margin-top: 4px;
+}
+
+.success-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--success);
+  font-weight: 600;
+}
+
+/* Corte section */
+.corte-section {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.corte-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.corte-sum {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.corte-sum.valid { background: #c6f6d5; color: #22543d; }
+.corte-sum.invalid { background: #fed7d7; color: #742a2a; }
+
+.corte-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.corte-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  background: #fdfafb;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px dashed var(--border);
+}
+
+.form-submit {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Totales box */
+.totales-box {
+  margin-top: 16px;
+  background: #f7fafc;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.total-destacado {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--primary);
+  margin-top: 6px;
+  border-top: 2px solid var(--primary);
+  padding-top: 6px;
+}
+
+/* Pagination bar */
+.pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.pagination-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.composition-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.composition-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border-radius: 4px;
+}
+
+.badge-percentage {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-maridaje {
+  background: #edf2f7;
+  color: var(--secondary);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.loading-state, .empty-state {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.placeholder-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.workflow-steps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.step {
+  padding: 8px 12px;
+  background: #edf2f7;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--secondary);
+}
+
+.step.active {
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid #fed7d7;
+}
+
+.arrow {
+  color: var(--text-muted);
+  font-weight: bold;
+}
+
+
+/* Nueva Venta */
+.notice-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #744210;
+}
+
+.notice-banner p {
+  flex: 1;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.text-muted {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.venta-renglon-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
+}
+
+.venta-vino-field {
+  flex: 1 1 320px;
+}
+
+.venta-cantidad-field {
+  flex: 0 0 140px;
+}
+
+.cart-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.cart-section .empty-state {
+  padding: 20px;
+}
+
+.venta-submit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.venta-submit-row p {
+  max-width: 620px;
+}
+
+.comprobante-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-left: 4px solid var(--success);
+}
+
+.comprobante-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.comprobante-header h3 {
+  color: var(--success);
+  font-size: 18px;
+  margin-bottom: 2px;
+}
+
+.total-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  background-color: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: 8px;
+  padding: 10px 16px;
+}
+
+.total-hero-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--success);
+}
+
+.total-hero-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--success);
+}

@@ -1,12 +1,16 @@
 from datetime import date
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class TransferenciaCreate(BaseModel):
-    id_sala: int = Field(..., gt=0, description="ID de la sala de venta destino")
-    id_transportista: Optional[int] = Field(None, gt=0, description="Opcional: ID del transportista")
+    model_config = ConfigDict(extra="forbid")
 
+    id_sala: int = Field(
+        ...,
+        gt=0,
+        description="ID de la sala de venta destino"
+    )
 
 class RenglonTransferenciaCreate(BaseModel):
     cod_vino: int = Field(..., gt=0, description="Código del vino a transferir")

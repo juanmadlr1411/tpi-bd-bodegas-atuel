@@ -4,6 +4,7 @@ import { CatalogoVinos } from './screens/CatalogoVinos';
 import { AltaVino } from './screens/AltaVino';
 import { NuevaVenta } from './screens/NuevaVenta';
 import { Transferencias } from './screens/Transferencias';
+import { TableroReportes } from './screens/TableroReportes';
 
 export function App() {
   const [activeTab, setActiveTab] = useState('catalogo');
@@ -22,12 +23,7 @@ export function App() {
         {/* Espacios reservados para que cada integrante monte su componente */}
         {activeTab === 'nueva-venta' && <NuevaVenta />}
         {activeTab === 'transferencias' && <Transferencias />}
-        {activeTab === 'tablero' && (
-          <div className="placeholder-card">
-            <h3>📊 Tablero de Reportes y Vistas</h3>
-            <p>Módulo reservado para reportes analíticos de la Sección 8.</p>
-          </div>
-        )}
+        {activeTab === 'tablero' && <TableroReportes />}
       </main>
     </div>
   );

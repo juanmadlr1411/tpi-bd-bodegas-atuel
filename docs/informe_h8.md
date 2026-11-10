@@ -4,7 +4,7 @@
 **Asignatura:** Bases de Datos — UTN FRSR (2026)  
 **Equipo:** Gonzalo, Manuel, Bruno, Juan Manuel, Santiago  
 
----
+
 
 ## 1. Introducción y Objetivos de la Etapa
 
@@ -122,5 +122,97 @@ No quedaron registros residuales ni cabeceras huérfanas, demostrando la consist
 
 ## 7. Despliegue de API y Frontend (Juan Manuel y Santiago)
 
-*(Sección a completar con las URLs públicas HTTPS y capturas de los servicios en Render / Vercel).*
+### 7.1. Arquitectura del sistema en producción
 
+El sistema Bodegas del Atuel se desplegó utilizando una arquitectura distribuida de tres componentes:
+
+- **Frontend:** React y Vite, alojados en Vercel.
+- **Backend:** API REST desarrollada con FastAPI, alojada en Render.
+- **Base de datos:** PostgreSQL 16, alojada en Neon.
+
+La comunicación sigue el flujo:
+
+**React (Vercel) → FastAPI (Render) → PostgreSQL (Neon)**
+
+Los servicios se comunican mediante conexiones HTTPS y, para la conexión con PostgreSQL, se utiliza SSL/TLS.
+
+### 7.2. Despliegue del backend en Render
+
+La API REST se encuentra disponible públicamente en:
+
+**https://bodegas-atuel-api-ji2n.onrender.com**
+
+Se verificó el endpoint `/salud`, que confirmó la conexión con PostgreSQL:
+
+- Estado: `ok`.
+- Base de datos: `connected`.
+- Usuario: `operador_atuel`.
+- Base de datos activa: `neondb`.
+
+Durante las pruebas se observaron errores transitorios de conexiones PostgreSQL (`SQLSTATE 57P01`), que posteriormente se recuperaron. Se recomienda revisar el manejo de conexiones del pool para mejorar la estabilidad del servicio.
+
+### 7.3. Despliegue del frontend en Vercel
+
+El frontend se publicó mediante Vercel CLI, utilizando el código del directorio `front` del repositorio.
+
+La configuración empleada fue:
+
+- Framework: Vite.
+- Directorio del proyecto: `front`.
+- Comando de compilación: `vite build`.
+- Directorio de salida: `dist`.
+- Entorno de despliegue: Production.
+
+La dirección pública es:
+
+**https://bodegas-atuel.vercel.app**
+
+El despliegue se completó correctamente y Vercel habilitó el acceso HTTPS.
+
+### 7.4. Configuración de la comunicación con la API
+
+Se configuró la siguiente variable de entorno de producción en Vercel:
+
+`VITE_API_URL=https://bodegas-atuel-api-ji2n.onrender.com`
+
+La aplicación utiliza esta variable mediante `import.meta.env.VITE_API_URL`, permitiendo separar la configuración de producción del entorno local.
+
+No se incorporaron credenciales de PostgreSQL ni secretos de infraestructura al código fuente del frontend.
+
+### 7.5. Verificación funcional
+
+Se accedió al frontend público desde el navegador Brave y se verificó la visualización de las cinco pantallas del sistema:
+
+1. Catálogo de Vinos: carga de registros, filtros y paginación.
+2. Alta y Corte: visualización del formulario de registro de vinos.
+3. Nueva Venta: carga de clientes, salas y vinos.
+4. Transferencias: visualización del formulario correspondiente.
+5. Tablero: ranking de vinos más vendidos, gráfico de ventas por sala y selector de salas.
+
+También se comprobó el funcionamiento del filtro de añada utilizando el año 2024.
+
+Durante la navegación de comprobación no se observaron errores de CORS en la consola del navegador.
+
+Las verificaciones realizadas fueron principalmente de lectura y navegación. No se ejecutaron operaciones de escritura sobre la base de datos de producción.
+
+### 7.6. Evidencias del despliegue
+
+Las capturas del frontend publicado se almacenan en `docs/capturas_h8/`.
+
+![Catálogo de Vinos](capturas_h8/frontend_catalogo.png)
+
+![Alta y Corte](capturas_h8/frontend_alta_vino.png)
+
+![Nueva Venta](capturas_h8/frontend_nueva_venta.png)
+
+![Transferencias](capturas_h8/frontend_transferencias.png)
+
+![Tablero de Reportes](capturas_h8/frontend_tablero.png)
+
+### 7.7. Consideraciones operativas
+
+El despliegue inicial de Vercel se realizó mediante CLI, sin habilitar la integración automática con GitHub.
+
+En consecuencia, los cambios posteriores del frontend requieren un nuevo despliegue manual hasta que se configure la integración continua.
+
+Las pruebas realizadas permiten confirmar el funcionamiento básico de la comunicación entre los tres servicios desplegados, aunque no sustituyen las pruebas completas de operaciones transaccionales y estabilidad.

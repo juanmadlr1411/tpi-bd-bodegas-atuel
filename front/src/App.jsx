@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { CatalogoVinos } from './screens/CatalogoVinos';
 import { AltaVino } from './screens/AltaVino';
+import { NuevaVenta } from './screens/NuevaVenta';
 
 export function App() {
   const [activeTab, setActiveTab] = useState('catalogo');
@@ -18,12 +19,7 @@ export function App() {
         )}
 
         {/* Espacios reservados para que cada integrante monte su componente */}
-        {activeTab === 'nueva-venta' && (
-          <div className="placeholder-card">
-            <h3>🧾 Nueva Venta y Errores (RN-09)</h3>
-            <p>Módulo reservado para implementación de ventas y manejo de stock.</p>
-          </div>
-        )}
+        {activeTab === 'nueva-venta' && <NuevaVenta />}
         {activeTab === 'transferencias' && (
           <div className="placeholder-card">
             <h3>🚚 Transferencias y Estados (RN-11)</h3>

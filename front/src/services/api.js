@@ -76,6 +76,9 @@ export const api = {
   },
   getCliente: (idCliente) => request(`/clientes/${idCliente}`),
 
+  // Salas de venta
+  getSalas: () => request('/salas'),
+
   // Comprobantes (Ventas)
   crearComprobante: (comprobanteData) =>
     request('/comprobantes', { method: 'POST', body: JSON.stringify(comprobanteData) }),

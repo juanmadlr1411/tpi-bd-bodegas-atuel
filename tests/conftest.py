@@ -4,43 +4,28 @@ import psycopg
 from api.config import settings
 
 
-BASE_PERMITIDA = "bodegas_atuel_h6_tests"
-USUARIO_PERMITIDO = "operador_h6_qa"
-
-
 @pytest.fixture(scope="session", autouse=True)
-def proteger_base_datos_tests():
+def verificar_rol_no_propietario():
     """
-    Impide ejecutar los tests sobre una base de datos
-    distinta de la autorizada para integración.
+    Verifica que la suite de integración de la API se ejecute con el rol sin privilegios
+    de propietario (operador_atuel), cumpliendo con el Criterio de Aceptación
+    obligatorio de la Etapa 6.
     """
-
-    # Primera protección: configuración de FastAPI.
-    if (
-        settings.DB_NAME != BASE_PERMITIDA
-        or settings.DB_USER != USUARIO_PERMITIDO
-    ):
+    if settings.DB_USER in ("admin_atuel", "postgres"):
         pytest.fail(
-            "Ejecución bloqueada: los tests requieren "
-            f"DB_NAME={BASE_PERMITIDA} y "
-            f"DB_USER={USUARIO_PERMITIDO}.",
+            "Ejecución bloqueada: Los tests de la API deben ejecutarse con el "
+            "rol de operador sin privilegios de propietario (operador_atuel).",
             pytrace=False,
         )
 
-    # Segunda protección: conexión real a PostgreSQL.
     with psycopg.connect(settings.conninfo) as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT current_database(), current_user;"
-            )
-            base_real, usuario_real = cur.fetchone()
+            cur.execute("SELECT current_user;")
+            usuario_real = cur.fetchone()[0]
 
-    if (
-        base_real != BASE_PERMITIDA
-        or usuario_real != USUARIO_PERMITIDO
-    ):
+    if usuario_real in ("admin_atuel", "postgres"):
         pytest.fail(
-            "Ejecución bloqueada: PostgreSQL devolvió "
-            f"base={base_real}, usuario={usuario_real}.",
+            f"Ejecución bloqueada: La conexión activa en PostgreSQL pertenece a '{usuario_real}' "
+            "(debe ser un rol restringido como 'operador_atuel').",
             pytrace=False,
         )

@@ -15,6 +15,19 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  api:
+      build: .
+      ports:
+        - "8000:8000"
+      volumes:
+        - ./api:/app/api
+      env_file:
+        - .env
+      environment:
+        - DB_HOST=db
+      depends_on:
+        db:
+          condition: service_healthy
 
 volumes:
   pgdata:

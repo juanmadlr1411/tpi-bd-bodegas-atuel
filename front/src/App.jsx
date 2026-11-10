@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Navbar } from './components/Navbar';
+import { CatalogoVinos } from './screens/CatalogoVinos';
+import { AltaVino } from './screens/AltaVino';
 
 export function App() {
   const [activeTab, setActiveTab] = useState('catalogo');
@@ -9,34 +11,29 @@ export function App() {
       <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <main className="main-content">
-        {activeTab === 'catalogo' && (
-          <div className="placeholder-card">
-            <h3>🍷 Catálogo de Vinos</h3>
-            <p>Módulo asignado a Onza (Gonzalo).</p>
-          </div>
-        )}
+        {/* Pantallas asignadas a Onza (Gonzalo) */}
+        {activeTab === 'catalogo' && <CatalogoVinos />}
         {activeTab === 'alta-vino' && (
-          <div className="placeholder-card">
-            <h3>➕ Alta de Vino con Corte (RN-05)</h3>
-            <p>Módulo asignado a Onza (Gonzalo).</p>
-          </div>
+          <AltaVino onVinoCreado={() => setActiveTab('catalogo')} />
         )}
+
+        {/* Espacios reservados para que cada integrante monte su componente */}
         {activeTab === 'nueva-venta' && (
           <div className="placeholder-card">
-            <h3>🧾 Nueva Venta y Errores de Stock (RN-09)</h3>
-            <p>Módulo asignado a Bruno (Br1).</p>
+            <h3>🧾 Nueva Venta y Errores (RN-09)</h3>
+            <p>Módulo reservado para implementación de ventas y manejo de stock.</p>
           </div>
         )}
         {activeTab === 'transferencias' && (
           <div className="placeholder-card">
             <h3>🚚 Transferencias y Estados (RN-11)</h3>
-            <p>Módulo asignado a Manuel (Pelu) / Santiago (Bando).</p>
+            <p>Módulo reservado para el circuito de transferencias de stock.</p>
           </div>
         )}
         {activeTab === 'tablero' && (
           <div className="placeholder-card">
             <h3>📊 Tablero de Reportes y Vistas</h3>
-            <p>Módulo asignado a Juan Manuel (Delgado) / Santiago (Bando).</p>
+            <p>Módulo reservado para reportes analíticos de la Sección 8.</p>
           </div>
         )}
       </main>

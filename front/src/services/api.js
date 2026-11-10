@@ -84,13 +84,32 @@ export const api = {
     request('/comprobantes', { method: 'POST', body: JSON.stringify(comprobanteData) }),
   getComprobante: (nroComprobante) => request(`/comprobantes/${nroComprobante}`),
 
-  // Transferencias e Ingresos (listos para cuando se conecten los endpoints)
-  crearTransferencia: (data) => request('/transferencias', { method: 'POST', body: JSON.stringify(data) }),
-  getTransferencia: (nro) => request(`/transferencias/${nro}`),
+  // Transferencias
+  crearTransferencia: (data) =>
+    request('/transferencias', { method: 'POST', body: JSON.stringify(data) }),
+  getTransferencia: (nro) =>
+    request(`/transferencias/${nro}`),
+  agregarRenglonTransferencia: (nro, data) =>
+    request(`/transferencias/${nro}/renglones`, { method: 'POST', body: JSON.stringify(data) }),
+  terminarTransferencia: (nro) =>
+    request(`/transferencias/${nro}/terminar`, { method: 'POST' }),
+  procesarTransferencia: (nro) =>
+    request(`/transferencias/${nro}/procesar`, { method: 'POST' }),
+
+  // Ingresos
+  crearIngreso: (data) =>
+    request('/ingresos', { method: 'POST', body: JSON.stringify(data) }),
+  getIngreso: (cod) =>
+    request(`/ingresos/${cod}`),
+  agregarRenglonIngreso: (cod, data) =>
+    request(`/ingresos/${cod}/renglones`, { method: 'POST', body: JSON.stringify(data) }),
+  terminarIngreso: (cod) =>
+    request(`/ingresos/${cod}/terminar`, { method: 'POST' }),
+  procesarIngreso: (cod) =>
+    request(`/ingresos/${cod}/procesar`, { method: 'POST' }),
 
   // Reportes
   getTopVinos: () => request('/reportes/top-vinos'),
   getVentasPorSala: () => request('/reportes/ventas-por-sala'),
   getVinosSinStock: (idSala) => request(`/reportes/vinos-sin-stock?id_sala=${idSala}`),
 };
-

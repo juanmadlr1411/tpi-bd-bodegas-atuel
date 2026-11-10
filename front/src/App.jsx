@@ -3,6 +3,7 @@ import { Navbar } from './components/Navbar';
 import { CatalogoVinos } from './screens/CatalogoVinos';
 import { AltaVino } from './screens/AltaVino';
 import { NuevaVenta } from './screens/NuevaVenta';
+import { Transferencias } from './screens/Transferencias';
 
 export function App() {
   const [activeTab, setActiveTab] = useState('catalogo');
@@ -20,12 +21,7 @@ export function App() {
 
         {/* Espacios reservados para que cada integrante monte su componente */}
         {activeTab === 'nueva-venta' && <NuevaVenta />}
-        {activeTab === 'transferencias' && (
-          <div className="placeholder-card">
-            <h3>🚚 Transferencias y Estados (RN-11)</h3>
-            <p>Módulo reservado para el circuito de transferencias de stock.</p>
-          </div>
-        )}
+        {activeTab === 'transferencias' && <Transferencias />}
         {activeTab === 'tablero' && (
           <div className="placeholder-card">
             <h3>📊 Tablero de Reportes y Vistas</h3>

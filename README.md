@@ -7,10 +7,11 @@ Sistema integral de gestión y distribución para "Bodegas del Atuel", una empre
 El sistema está desplegado en la nube utilizando una arquitectura de microservicios con separación de responsabilidades:
 *   **Frontend (React):** Desplegado en Vercel.  
     URL Pública: https://bodegas-atuel.vercel.app
-*   **Backend API (FastAPI):** Desplegado en Render.com con cifrado SSL/TLS y rol de privilegios mínimos.  
-    URL Pública: https://bodegas-atuel-api.onrender.com  
-    Swagger UI / Documentación: https://bodegas-atuel-api.onrender.com/docs
-*   **Base de Datos (PostgreSQL 14+):** Desplegada en Neon.tech (Serverless Postgres).
+*   **Backend API (FastAPI):** Desplegado en Render.com con cifrado SSL/TLS y rol de privilegios mínimos (`operador_atuel`).  
+    URL Pública: https://bodegas-atuel-api-ji2n.onrender.com  
+    Swagger UI / Documentación: https://bodegas-atuel-api-ji2n.onrender.com/docs  
+    Diagnóstico / Salud: https://bodegas-atuel-api-ji2n.onrender.com/salud
+*   **Base de Datos (PostgreSQL 16):** Desplegada en Neon.tech (Serverless Postgres en AWS sa-east-1, SSL obligatorio).
 
 ## Integrantes del Equipo
 *   Bruno
@@ -29,7 +30,7 @@ Para levantar la base de datos, la API y el Frontend localmente en un solo paso,
     docker compose up -d
 
 Los servicios quedarán disponibles en:
-*   Frontend: http://localhost:3000
+*   Frontend: http://localhost:5173
 *   API: http://localhost:8000
 *   Base de Datos: localhost:5432
 

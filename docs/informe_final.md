@@ -714,7 +714,7 @@ Se validó el circuito completo de respaldo desde la base de producción `neondb
 
 ### 8.5. Despliegue de API en Render, Frontend en Vercel y Auditoría de Git (Responsables: Juan Manuel y Santiago)
 
-- **Backend en Render:** Publicado con HTTPS y certificado TLS activo (`https://bodegas-atuel-api-ji2n.onrender.com` / `https://bodegas-atuel-api.onrender.com`), conectado a Neon bajo el rol `operador_atuel` con `DB_SSLMODE=require`.
+- **Backend en Render:** Publicado con HTTPS y certificado TLS activo (`https://bodegas-atuel-api-ji2n.onrender.com`), conectado a Neon bajo el rol `operador_atuel` con `DB_SSLMODE=require`.
 - **Frontend en Vercel:** Publicado en `https://bodegas-atuel.vercel.app` vinculando `VITE_API_URL` hacia el servicio de Render y verificando la navegación sin errores de CORS en las cinco pantallas del sistema.
 - **Auditoría de Seguridad en Git:** La inspección del historial completo del repositorio (`git log --all --name-only | grep -E '\.env$|\.env\.'`) confirmó que únicamente se versionaron las plantillas `.env.example` y `front/.env.example`, cumpliendo la política de **Cero Secretos en Git**.
 

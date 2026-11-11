@@ -14,7 +14,7 @@ export function App() {
       <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <main className="main-content">
-        {/* Pantallas asignadas a Onza (Gonzalo) */}
+        {/* Pantallas de catálogo y alta (Gonzalo) */}
         {activeTab === 'catalogo' && <CatalogoVinos />}
         {activeTab === 'alta-vino' && (
           <AltaVino onVinoCreado={() => setActiveTab('catalogo')} />

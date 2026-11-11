@@ -2,7 +2,7 @@
 
 **Proyecto:** Bodegas del Atuel  
 **Asignatura:** Bases de Datos — UTN FRSR (2026)  
-**Equipo:** Gonzalo (Onza), Santiago (Bando), Bruno (Br1), Manuel (Pelu), Juan Manuel (Delgado)  
+**Equipo:** Gonzalo, Santiago, Bruno, Manuel, Juan Manuel  
 
 ---
 

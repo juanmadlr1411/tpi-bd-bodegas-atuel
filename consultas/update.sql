@@ -2,7 +2,7 @@
 -- TPI BASES DE DATOS - UTN FRSR (2026)
 -- Proyecto: Bodegas del Atuel
 -- Archivo: consultas/update.sql (Etapa 5 - Modificación de Datos)
--- Responsable: Gonzalo (Onza)
+-- Responsable: Gonzalo
 -- =============================================================================
 -- PAUTAS DE LA CÁTEDRA (Sección 7 - Etapa 5 y Criterios de Aceptación):
 --   1. Todas las sentencias de modificación se prueban DENTRO DE UNA TRANSACCIÓN:

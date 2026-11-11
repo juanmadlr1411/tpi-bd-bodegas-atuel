@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { ErrorAlert } from '../components/ErrorAlert';
 
 /**
- * Pantalla 1: Catálogo de Vinos (Asignada a Onza)
+ * Pantalla 1: Catálogo de Vinos (Responsable: Gonzalo)
  * Listado paginado con filtros por tipo, cepa, bodega y añada; detalle con composición y maridajes.
  */
 export function CatalogoVinos() {
@@ -18,7 +18,7 @@ export function CatalogoVinos() {
   const [anada, setAnada] = useState('');
   const [cepa, setCepa] = useState('');
 
-  // Filtros efectivamente aplicados a la consulta (evita disparar peticiones inválidas mientras se tipea el año)
+  // Filtros aplicados efectivamente a la consulta
   const [filtrosAplicados, setFiltrosAplicados] = useState({
     tipo: '',
     bodega: '',

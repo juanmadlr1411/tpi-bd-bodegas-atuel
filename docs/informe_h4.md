@@ -336,7 +336,7 @@ GROUP BY 1 ORDER BY 1;
 Se utilizó `EXPLAIN (ANALYZE, BUFFERS)` antes de crear estos **dos** índices y
 después de crearlos y ejecutar `VACUUM (ANALYZE)` sobre las tablas involucradas.
 Los resultados corresponden a una base local de H3 con **600.000 renglones de venta**
-y **150.000 comprobantes**. Las consultas 1 y 2 corresponden al aporte de Delgado.
+y **150.000 comprobantes**. Las consultas 1 y 2 corresponden al aporte de Juan Manuel.
 
 | Consulta | Antes (ms) | Después (ms) | Acceso antes | Acceso después | Reducción observada | Buffers representativos antes → después |
 |---|---:|---:|---|---|---:|---|

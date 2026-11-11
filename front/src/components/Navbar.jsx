@@ -14,11 +14,11 @@ export function Navbar({ activeTab, onTabChange }) {
   }, []);
 
   const tabs = [
-    { id: 'catalogo', label: 'Catálogo de Vinos', icon: '🍷', author: 'Onza' },
-    { id: 'alta-vino', label: 'Alta y Corte', icon: '➕', author: 'Onza' },
-    { id: 'nueva-venta', label: 'Nueva Venta', icon: '🧾', author: 'Br1' },
-    { id: 'transferencias', label: 'Transferencias', icon: '🚚', author: 'Pelu' },
-    { id: 'tablero', label: 'Tablero', icon: '📊', author: 'Bando' },
+    { id: 'catalogo', label: 'Catálogo de Vinos', icon: '🍷', author: 'Gonzalo' },
+    { id: 'alta-vino', label: 'Alta y Corte', icon: '➕', author: 'Gonzalo' },
+    { id: 'nueva-venta', label: 'Nueva Venta', icon: '🧾', author: 'Bruno' },
+    { id: 'transferencias', label: 'Transferencias', icon: '🚚', author: 'Manuel' },
+    { id: 'tablero', label: 'Tablero', icon: '📊', author: 'Santiago' },
   ];
 
   return (

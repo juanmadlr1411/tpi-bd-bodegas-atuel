@@ -19,7 +19,7 @@ El objetivo fundamental de la **Etapa 8** es llevar el sistema integral de **Bod
 
 ---
 
-## 2. Infraestructura de Base de Datos en la Nube (Manuel - Pelu)
+## 2. Infraestructura de Base de Datos en la Nube (Manuel)
 
 ### 2.1 Comparación de Proveedores y Decisión
 
@@ -45,7 +45,7 @@ Se aprovisionaron los roles de negocio con credenciales robustas:
 
 ---
 
-## 3. Carga Masiva de Datos y Secuencias (Gonzalo - Onza)
+## 3. Carga Masiva de Datos y Secuencias (Gonzalo)
 
 Para evitar la latencia excesiva que ocasionaría insertar 793.769 filas mediante comandos individuales a través de internet, se implementó el script de sincronización `db/seed/migrar_a_nube_h8.py` basado en el protocolo binario de PostgreSQL:
 
@@ -87,7 +87,7 @@ Tras rehabilitar los triggers de usuario (`ENABLE TRIGGER USER`), se ejecutaron 
 
 ---
 
-## 5. Prueba de Trigger Vivo en la Nube (Gonzalo - Onza)
+## 5. Prueba de Trigger Vivo en la Nube (Gonzalo)
 
 Para certificar el cumplimiento del **Punto 9 de la Etapa 8**, se ejecutó la prueba automatizada `db/seed/probar_trigger_nube_h8.py` contra el motor en la nube:
 
@@ -114,7 +114,7 @@ No quedaron registros residuales ni cabeceras huérfanas, demostrando la consist
 
 ---
 
-## 6. Procedimiento de Respaldo y Restauración (Bruno - Br1)
+## 6. Procedimiento de Respaldo y Restauración (Bruno)
 
 ### 6.1 Alcance y entorno de la prueba
 
@@ -232,7 +232,7 @@ La diferencia de filas entre producción y la base restaurada es **exactamente 0
 
 ## 7. Despliegue de API y Frontend (Juan Manuel y Santiago)
 
-## URL Pública de la API: https://bodegas-atuel-api-ji2n.onrender.com/
+**URL Pública de la API:** https://bodegas-atuel-api-ji2n.onrender.com/
 ![Salud Endpoint](capturas_h8/salud-endpoint.png)
 ![Seguridad Endpoint](capturas_h8/seguridad-endpoint.png)
 

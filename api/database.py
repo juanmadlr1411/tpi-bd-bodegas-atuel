@@ -13,11 +13,7 @@ pool: ConnectionPool | None = None
 
 
 def init_pool() -> ConnectionPool:
-    """
-    Inicializa el pool de conexiones de psycopg3.
-    Incluye check_connection y max_idle para reconectar automáticamente
-    frente a la suspensión de cómputo de bases serverless (Neon).
-    """
+    """Inicializa el pool de conexiones psycopg3 con reconexion serverless."""
     global pool
     if pool is None:
         logger.info(

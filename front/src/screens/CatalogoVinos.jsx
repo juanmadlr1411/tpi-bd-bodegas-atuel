@@ -12,11 +12,19 @@ export function CatalogoVinos() {
   const [limit] = useState(10);
   const [offset, setOffset] = useState(0);
 
-  // Filtros
+  // Inputs del formulario de filtros
   const [tipo, setTipo] = useState('');
   const [bodega, setBodega] = useState('');
   const [anada, setAnada] = useState('');
   const [cepa, setCepa] = useState('');
+
+  // Filtros efectivamente aplicados a la consulta (evita disparar peticiones inválidas mientras se tipea el año)
+  const [filtrosAplicados, setFiltrosAplicados] = useState({
+    tipo: '',
+    bodega: '',
+    anada: undefined,
+    cepa: '',
+  });
 
   // Detalle
   const [vinoSeleccionado, setVinoSeleccionado] = useState(null);
@@ -33,10 +41,10 @@ export function CatalogoVinos() {
       const data = await api.getVinos({
         limit,
         offset,
-        tipo: tipo || undefined,
-        bodega: bodega || undefined,
-        anada: anada ? parseInt(anada, 10) : undefined,
-        cepa: cepa || undefined,
+        tipo: filtrosAplicados.tipo || undefined,
+        bodega: filtrosAplicados.bodega || undefined,
+        anada: filtrosAplicados.anada,
+        cepa: filtrosAplicados.cepa || undefined,
       });
       setVinos(data.items || []);
       setTotal(data.total || 0);
@@ -45,7 +53,7 @@ export function CatalogoVinos() {
     } finally {
       setLoading(false);
     }
-  }, [limit, offset, tipo, bodega, anada, cepa]);
+  }, [limit, offset, filtrosAplicados]);
 
   useEffect(() => {
     cargarVinos();
@@ -66,8 +74,25 @@ export function CatalogoVinos() {
 
   const handleBuscar = (e) => {
     e.preventDefault();
+    const anadaTrim = String(anada).trim();
+    let anadaNum = undefined;
+    if (anadaTrim !== '') {
+      anadaNum = parseInt(anadaTrim, 10);
+      if (Number.isNaN(anadaNum) || anadaNum < 1990 || anadaNum > 2100) {
+        setError({
+          message: 'La añada debe ser un año válido entre 1990 y 2100.',
+          status: 422,
+        });
+        return;
+      }
+    }
     setOffset(0);
-    cargarVinos();
+    setFiltrosAplicados({
+      tipo,
+      bodega: bodega.trim(),
+      anada: anadaNum,
+      cepa: cepa.trim(),
+    });
   };
 
   const limpiarFiltros = () => {
@@ -75,7 +100,14 @@ export function CatalogoVinos() {
     setBodega('');
     setAnada('');
     setCepa('');
+    setError(null);
     setOffset(0);
+    setFiltrosAplicados({
+      tipo: '',
+      bodega: '',
+      anada: undefined,
+      cepa: '',
+    });
   };
 
   return (
@@ -91,7 +123,15 @@ export function CatalogoVinos() {
       <form className="filters-card" onSubmit={handleBuscar}>
         <div className="filter-group">
           <label>Tipo de Vino</label>
-          <select value={tipo} onChange={(e) => { setTipo(e.target.value); setOffset(0); }}>
+          <select
+            value={tipo}
+            onChange={(e) => {
+              const nuevoTipo = e.target.value;
+              setTipo(nuevoTipo);
+              setOffset(0);
+              setFiltrosAplicados((prev) => ({ ...prev, tipo: nuevoTipo }));
+            }}
+          >
             <option value="">Todos los tipos</option>
             <option value="tinto">Tinto</option>
             <option value="blanco">Blanco</option>
@@ -124,7 +164,9 @@ export function CatalogoVinos() {
           <label>Añada</label>
           <input
             type="number"
-            placeholder="Ej: 2022"
+            min="1990"
+            max="2100"
+            placeholder="Ej: 2024"
             value={anada}
             onChange={(e) => setAnada(e.target.value)}
           />

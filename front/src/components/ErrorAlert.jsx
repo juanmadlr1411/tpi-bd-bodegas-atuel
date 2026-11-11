@@ -9,9 +9,19 @@ import React from 'react';
 export function ErrorAlert({ error, onClose }) {
   if (!error) return null;
 
-  const message = error.message || (typeof error === 'string' ? error : 'Ocurrió un error inesperado');
+  const message =
+    typeof error.message === 'string'
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : 'Ocurrió un error inesperado';
   const sqlstate = error.sqlstate;
-  const detail = error.detail;
+  const detail =
+    typeof error.detail === 'string'
+      ? error.detail
+      : Array.isArray(error.detail)
+        ? error.detail.map((d) => d.msg || JSON.stringify(d)).join(' | ')
+        : null;
 
   return (
     <div className="error-banner">

@@ -116,7 +116,117 @@ No quedaron registros residuales ni cabeceras huérfanas, demostrando la consist
 
 ## 6. Procedimiento de Respaldo y Restauración (Bruno - Br1)
 
-*(Sección a completar por Bruno con las evidencias de pg_dump, restauración en base testigo y tabla de conteo de filas).*
+### 6.1 Alcance y entorno de la prueba
+
+Se validó el circuito completo de **Disaster Recovery** sobre la base de producción ya cargada en Neon:
+
+* **Motor origen:** PostgreSQL 16.15 (Neon, región AWS `sa-east-1`).
+* **Base origen:** `neondb` (producción, usuario administrador `neondb_owner`).
+* **Base testigo:** `bodegas_atuel_test_restore` (creada limpia para esta prueba).
+* **Cliente de respaldo:** `pg_dump` / `pg_restore` 16.15.
+* **Fecha de ejecución:** 10/11/2026.
+
+Las credenciales se pasaron en tiempo de ejecución mediante variables de entorno y **no se persisten en el repositorio ni en el historial de Git**.
+
+### 6.2 Comandos exactos ejecutados
+
+```bash
+# 0. Variables de conexión (el secreto se inyecta en runtime, no se versiona)
+export NEON_URL="postgresql://neondb_owner:****@<HOST_NEON>/neondb?sslmode=require&channel_binding=require"
+export TEST_URL="${NEON_URL/\/neondb\?/\/bodegas_atuel_test_restore\?}"
+
+# 1. Crear la base testigo limpia en el proveedor
+psql "$NEON_URL" -v ON_ERROR_STOP=1 \
+  -c 'DROP DATABASE IF EXISTS bodegas_atuel_test_restore WITH (FORCE);' \
+  -c 'CREATE DATABASE bodegas_atuel_test_restore;'
+
+# 2. Dump completo en formato custom (-Fc)
+pg_dump "$NEON_URL" -Fc -f /tmp/opencode/backup_bodegas_atuel.dump
+
+# 3. Restauración en la base testigo
+pg_restore -d "$TEST_URL" --clean --if-exists --no-owner --no-privileges \
+  /tmp/opencode/backup_bodegas_atuel.dump
+```
+
+> **Nota sobre los flags:** además de `--clean --no-owner` se agregaron `--if-exists` (evita que el `DROP` de `--clean` falle sobre objetos inexistentes en una base recién creada) y `--no-privileges` (evita errores de `ALTER DEFAULT PRIVILEGES` sobre roles de negocio que `neondb_owner` no administra en esta base). Con ambos flags la restauración finalizó con **exit code 0, 0 errores y 0 warnings**. La primera ejecución con `--clean --no-owner` ya había restaurado los datos, pero devolvía exit code 1 por esos `DROP`/privilegios esperables.
+
+### 6.3 Métricas de la operación
+
+| Métrica | Valor |
+| :--- | :--- |
+| Versión del motor | PostgreSQL 16.15 (Neon `sa-east-1`) |
+| Tablas de datos en el dump | 29 |
+| Tamaño del dump (`-Fc`) | 5,3 MB |
+| Duración `pg_dump` | 37,17 s |
+| Duración `pg_restore` | 62,11 s |
+| Exit code `pg_restore` | 0 |
+| Errores / warnings del restore | 0 / 0 |
+| Filas totales en producción | 793.769 |
+| Filas totales en la base testigo | 793.769 |
+
+### 6.4 Verificación cruzada de conteos (producción vs. testigo)
+
+Consulta aplicada en ambas bases:
+
+```sql
+SELECT 'comprobante' AS tabla, count(*) AS filas FROM comprobante
+UNION ALL SELECT 'renglon_comprobante', count(*) FROM renglon_comprobante
+UNION ALL SELECT 'vino', count(*) FROM vino
+UNION ALL SELECT 'cliente', count(*) FROM cliente
+UNION ALL SELECT 'stock_sala', count(*) FROM stock_sala
+ORDER BY tabla;
+```
+
+**Tablas clave:**
+
+| Tabla | Producción (`neondb`) | Testigo (`bodegas_atuel_test_restore`) | Diferencia |
+| :--- | ---: | ---: | ---: |
+| `comprobante` | 150.022 | 150.022 | **0** |
+| `renglon_comprobante` | 600.022 | 600.022 | **0** |
+| `vino` | 88 | 88 | **0** |
+| `cliente` | 1.100 | 1.100 | **0** |
+| `stock_sala` | 240 | 240 | **0** |
+
+**Control extendido: las 29 tablas base**
+
+La comparación se repitió sobre las 29 tablas del esquema `public` (conteo exacto por tabla vía `information_schema` + `query_to_xml`). El `diff` entre ambos resultados fue vacío: **paridad 1:1 en todas las tablas**.
+
+| Tabla | Producción | Testigo | Diferencia |
+| :--- | ---: | ---: | ---: |
+| `analisis_calidad` | 330 | 330 | 0 |
+| `auditoria_precio` | 24 | 24 | 0 |
+| `bodega` | 10 | 10 | 0 |
+| `cepa` | 12 | 12 | 0 |
+| `cliente` | 1.100 | 1.100 | 0 |
+| `cliente_distribuidor` | 353 | 353 | 0 |
+| `cliente_exportador` | 347 | 347 | 0 |
+| `cliente_socio` | 400 | 400 | 0 |
+| `composicion_vino` | 133 | 133 | 0 |
+| `comprobante` | 150.022 | 150.022 | 0 |
+| `empleado` | 21 | 21 | 0 |
+| `finca` | 11 | 11 | 0 |
+| `ingreso` | 5.040 | 5.040 | 0 |
+| `localidad` | 18 | 18 | 0 |
+| `lote_uva` | 165 | 165 | 0 |
+| `maridaje` | 8 | 8 | 0 |
+| `parcela` | 33 | 33 | 0 |
+| `permiso_exportacion` | 695 | 695 | 0 |
+| `renglon_comprobante` | 600.022 | 600.022 | 0 |
+| `renglon_ingreso` | 14.389 | 14.389 | 0 |
+| `renglon_transferencia` | 15.109 | 15.109 | 0 |
+| `sala_venta` | 6 | 6 | 0 |
+| `stock_deposito` | 40 | 40 | 0 |
+| `stock_sala` | 240 | 240 | 0 |
+| `transferencia` | 5.093 | 5.093 | 0 |
+| `transportista` | 5 | 5 | 0 |
+| `transportista_localidad` | 15 | 15 | 0 |
+| `vino` | 88 | 88 | 0 |
+| `vino_maridaje` | 40 | 40 | 0 |
+| **TOTAL** | **793.769** | **793.769** | **0** |
+
+### 6.5 Certificación
+
+La diferencia de filas entre producción y la base restaurada es **exactamente 0** en las cinco tablas clave y en la totalidad de las 29 tablas. El dump generado con `pg_dump -Fc` es restaurable de forma íntegra con `pg_restore`, por lo que **se certifica la paridad 1:1** y la validez del procedimiento de respaldo/restauración para el plan de continuidad del sistema.
 
 ---
 

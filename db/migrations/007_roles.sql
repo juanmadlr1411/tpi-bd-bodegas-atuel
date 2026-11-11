@@ -34,3 +34,26 @@ GRANT SELECT ON ALL TABLES IN SCHEMA public TO auditor_atuel;
 -- Asegurar permisos por defecto para futuras tablas
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO operador_atuel;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO auditor_atuel;
+
+-- =============================================================================
+-- H9: Restricción de ejecución de procedimientos operativos
+-- =============================================================================
+
+-- Evitar que cualquier usuario pueda ejecutar procedimientos
+-- que modifican existencias y estados de documentos.
+REVOKE EXECUTE ON PROCEDURE
+    public.sp_procesar_ingreso(integer),
+    public.sp_procesar_transferencia(integer)
+FROM PUBLIC;
+
+-- El operador puede ejecutar los procedimientos de negocio.
+GRANT EXECUTE ON PROCEDURE
+    public.sp_procesar_ingreso(integer),
+    public.sp_procesar_transferencia(integer)
+TO operador_atuel;
+
+-- El auditor no debe ejecutar procedimientos operativos.
+REVOKE EXECUTE ON PROCEDURE
+    public.sp_procesar_ingreso(integer),
+    public.sp_procesar_transferencia(integer)
+FROM auditor_atuel;

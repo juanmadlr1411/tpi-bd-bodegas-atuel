@@ -28,11 +28,27 @@ async function request(endpoint, options = {}) {
       errorData = { message: `Error HTTP ${response.status}: ${response.statusText}` };
     }
 
-    const message = errorData.message || errorData.detail || errorData.error || 'Error en la operación';
+    let detailText = null;
+    if (Array.isArray(errorData.detail)) {
+      detailText = errorData.detail
+        .map((item) => {
+          const campo = Array.isArray(item.loc) ? item.loc.slice(1).join('.') : '';
+          return campo ? `${campo}: ${item.msg}` : item.msg || JSON.stringify(item);
+        })
+        .join(' | ');
+    } else if (typeof errorData.detail === 'string') {
+      detailText = errorData.detail;
+    }
+
+    const message =
+      errorData.message ||
+      detailText ||
+      errorData.error ||
+      'Error en la operación';
     const err = new Error(message);
     err.status = response.status;
     err.sqlstate = errorData.sqlstate || null;
-    err.detail = errorData.detail || null;
+    err.detail = errorData.message && detailText ? detailText : null;
     err.raw = errorData;
     throw err;
   }

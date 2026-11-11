@@ -99,7 +99,7 @@ ROLLBACK;
 -- ---------------------------------------------------------
 \echo '>> TEST 10: Venta válida, modificación de cantidad y borrado (Debe ajustar stock)'
 BEGIN;
--- Se asume que el trigger de Br1/Pelu calculará el subtotal y ajustará stock automáticamente.
+-- El trigger calcula subtotal y ajusta stock automaticamente.
 -- 1. Inserción válida
 INSERT INTO public.renglon_comprobante (nro_comprobante, cod_vino, cantidad, precio_unitario, descuento, subtotal) 
 VALUES (1, 1, 5, 1000, 0, 5000);

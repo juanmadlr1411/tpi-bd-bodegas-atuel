@@ -27,7 +27,7 @@ async function cargarTodos(fetcher) {
 }
 
 /**
- * Pantalla 3: Nueva Venta (Asignada a Br1)
+ * Pantalla 3: Nueva Venta (Responsable: Bruno)
  * El frontend solo envía cliente, sala y renglones. Los subtotales, descuentos,
  * total y stock son calculados/validados exclusivamente por la base de datos.
  */

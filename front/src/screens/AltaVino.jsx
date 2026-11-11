@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { ErrorAlert } from '../components/ErrorAlert';
 
 /**
- * Pantalla 2: Alta y Edición de Vino (Asignada a Onza)
+ * Pantalla 2: Alta y Edición de Vino (Responsable: Gonzalo)
  * Formulario que incluye la composición de cepas; DEBE mostrar el error devuelto
  * por la base de datos cuando los porcentajes no suman 100% (RN-05).
  */

@@ -15,6 +15,8 @@ pool: ConnectionPool | None = None
 def init_pool() -> ConnectionPool:
     """
     Inicializa el pool de conexiones de psycopg3.
+    Incluye check_connection y max_idle para reconectar automáticamente
+    frente a la suspensión de cómputo de bases serverless (Neon).
     """
     global pool
     if pool is None:
@@ -26,6 +28,8 @@ def init_pool() -> ConnectionPool:
             conninfo=settings.conninfo,
             min_size=settings.DB_POOL_MIN_SIZE,
             max_size=settings.DB_POOL_MAX_SIZE,
+            check=ConnectionPool.check_connection,
+            max_idle=300.0,
             kwargs={"row_factory": dict_row},
             open=True,
         )
@@ -62,4 +66,3 @@ def get_db_cursor() -> Generator[psycopg.Cursor, None, None]:
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             yield cur
-

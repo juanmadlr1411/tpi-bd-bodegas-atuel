@@ -122,6 +122,10 @@ No quedaron registros residuales ni cabeceras huérfanas, demostrando la consist
 
 ## 7. Despliegue de API y Frontend (Juan Manuel y Santiago)
 
+## URL Pública de la API: https://bodegas-atuel-api-ji2n.onrender.com/
+![Salud Endpoint](capturas_h8/salud-endpoint.png)
+![Seguridad Endpoint](capturas_h8/seguridad-endpoint.png)
+
 ### 7.1. Arquitectura del sistema en producción
 
 El sistema Bodegas del Atuel se desplegó utilizando una arquitectura distribuida de tres componentes:
